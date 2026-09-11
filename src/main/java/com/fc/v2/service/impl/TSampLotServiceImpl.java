@@ -1,7 +1,6 @@
 package com.fc.v2.service.impl;
 
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
@@ -10,11 +9,12 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fc.v2.common.support.ConvertUtil;
 import com.fc.v2.mapper.auto.TSampLotMapper;
+import com.fc.v2.mapper.auto.TSampProductMapper;
 import com.fc.v2.mapper.auto.TSampSchemeMapper;
 import com.fc.v2.model.auto.TSampLot;
+import com.fc.v2.model.auto.TSampProduct;
 import com.fc.v2.model.auto.TSampScheme;
 import com.fc.v2.service.ITSampLotService;
-import com.github.pagehelper.PageHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +29,9 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
 
     @Autowired
     private TSampSchemeMapper tSampSchemeMapper;
+
+    @Autowired
+    private TSampProductMapper tSampProductMapper;
 
     /**
      * 查询检验批
@@ -54,8 +57,6 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
         QueryWrapper<TSampLot> wrapper = (queryWrapper instanceof QueryWrapper)
                 ? (QueryWrapper<TSampLot>) queryWrapper
                 : new QueryWrapper<TSampLot>();
-        PageHelper.startPage(1, 10);
-        wrapper.eq("status", 0);
         wrapper.eq("del_flag", 0).orderByDesc("create_time");
         return this.baseMapper.selectList(wrapper);
     }
@@ -71,11 +72,10 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
         if (batchQty == null) {
             return null;
         }
-        // 批量区间为闭区间，这里做 +1 处理以避免边界重复命中
-        Integer qty = batchQty + 1;
+        // 批量区间为闭区间 [qty_min, qty_max]，取批量落入的第一档
         List<TSampScheme> list = tSampSchemeMapper.selectList(new QueryWrapper<TSampScheme>()
-                .le("qty_min", qty)
-                .ge("qty_max", qty)
+                .le("qty_min", batchQty)
+                .ge("qty_max", batchQty)
                 .eq("del_flag", 0)
                 .orderByAsc("qty_min")
                 .last("limit 1"));
@@ -94,18 +94,9 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     @Override
     public int insertTSampLot(TSampLot tSampLot) {
         tSampLot.setDelFlag(0);
-        tSampLot.setCreateBy(tSampLot.getApplyBy());
-        tSampLot.setCreateTime(new Date());
-        if (tSampLot.getStatus() == null) {
-            tSampLot.setStatus(0);
-        }
-        TSampScheme scheme = matchScheme(tSampLot.getBatchQty());
-        if (scheme != null) {
-            tSampLot.setSchemeCode(scheme.getCodeLetter());
-            tSampLot.setSampleSize(scheme.getSampleSize());
-            tSampLot.setAcceptCount(scheme.getAcceptCount());
-            tSampLot.setRejectCount(scheme.getRejectCount());
-        }
+        // 新登记的检验批为待抽样
+        tSampLot.setStatus(0);
+        fillDerivedFields(tSampLot);
         return this.baseMapper.insert(tSampLot);
     }
 
@@ -117,7 +108,7 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
      */
     @Override
     public int updateTSampLot(TSampLot tSampLot) {
-        tSampLot.setUpdateTime(new Date());
+        fillDerivedFields(tSampLot);
         return this.baseMapper.update(tSampLot, new UpdateWrapper<TSampLot>()
                 .eq("id", tSampLot.getId())
                 .eq("del_flag", 0));
@@ -144,5 +135,28 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     @Override
     public int deleteTSampLotById(Long id) {
         return this.baseMapper.deleteById(id);
+    }
+
+    /**
+     * 填充派生字段：冗余产品编号/名称/AQL，并按批量匹配抽样方案填充字码、样本量、接收数、拒收数
+     *
+     * @param tSampLot 检验批
+     */
+    private void fillDerivedFields(TSampLot tSampLot) {
+        if (tSampLot.getProductId() != null) {
+            TSampProduct product = tSampProductMapper.selectById(tSampLot.getProductId());
+            if (product != null) {
+                tSampLot.setProductCode(product.getCode());
+                tSampLot.setProductName(product.getName());
+                tSampLot.setAql(product.getAql());
+            }
+        }
+        TSampScheme scheme = matchScheme(tSampLot.getBatchQty());
+        if (scheme != null) {
+            tSampLot.setSchemeCode(scheme.getCodeLetter());
+            tSampLot.setSampleSize(scheme.getSampleSize());
+            tSampLot.setAcceptCount(scheme.getAcceptCount());
+            tSampLot.setRejectCount(scheme.getRejectCount());
+        }
     }
 }

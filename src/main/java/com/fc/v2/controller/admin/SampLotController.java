@@ -6,7 +6,10 @@ import com.fc.v2.common.domain.AjaxResult;
 import com.fc.v2.common.domain.ResultTable;
 import com.fc.v2.common.log.Log;
 import com.fc.v2.model.auto.TSampLot;
+import com.fc.v2.model.auto.TSampProduct;
+import com.fc.v2.model.auto.TSampScheme;
 import com.fc.v2.service.ITSampLotService;
+import com.fc.v2.service.ITSampProductService;
 import com.fc.v2.util.StringUtils;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
@@ -32,6 +35,9 @@ public class SampLotController extends BaseController {
     @Autowired
     private ITSampLotService tSampLotService;
 
+    @Autowired
+    private ITSampProductService tSampProductService;
+
     @ApiOperation(value = "分页跳转", notes = "分页跳转")
     @GetMapping("/view")
     public String view() {
@@ -40,7 +46,7 @@ public class SampLotController extends BaseController {
 
     @Log(title = "检验批集合查询", action = "list")
     @ApiOperation(value = "分页查询", notes = "分页查询")
-    @PostMapping("/list")
+    @GetMapping("/list")
     @ResponseBody
     public ResultTable list(TSampLot tSampLot) {
         QueryWrapper<TSampLot> queryWrapper = new QueryWrapper<TSampLot>();
@@ -52,7 +58,9 @@ public class SampLotController extends BaseController {
 
     @ApiOperation(value = "新增跳转", notes = "新增跳转")
     @GetMapping("/add")
-    public String add() {
+    public String add(ModelMap mmap) {
+        mmap.put("products", tSampProductService.selectTSampProductList(
+                new QueryWrapper<TSampProduct>().eq("status", 0)));
         return prefix + "/add";
     }
 
@@ -68,6 +76,8 @@ public class SampLotController extends BaseController {
     @GetMapping("/edit/{id}")
     public String edit(@PathVariable("id") Long id, ModelMap mmap) {
         mmap.put("TSampLot", tSampLotService.selectTSampLotById(id));
+        mmap.put("products", tSampProductService.selectTSampProductList(
+                new QueryWrapper<TSampProduct>().eq("status", 0)));
         return prefix + "/edit";
     }
 
@@ -77,6 +87,17 @@ public class SampLotController extends BaseController {
     @ResponseBody
     public AjaxResult editSave(TSampLot tSampLot) {
         return toAjax(tSampLotService.updateTSampLot(tSampLot));
+    }
+
+    @ApiOperation(value = "按批量匹配抽样方案", notes = "按批量匹配抽样方案")
+    @GetMapping("/matchScheme")
+    @ResponseBody
+    public AjaxResult matchScheme(Integer batchQty) {
+        TSampScheme scheme = tSampLotService.matchScheme(batchQty);
+        if (scheme == null) {
+            return AjaxResult.error("批量[" + batchQty + "]未匹配到抽样方案");
+        }
+        return AjaxResult.successData(200, scheme);
     }
 
     @Log(title = "检验批删除", action = "remove")
