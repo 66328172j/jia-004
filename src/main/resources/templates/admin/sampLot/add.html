@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('检验批新增')"/>
+</head>
+<body>
+<form class="layui-form">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检验批号</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="lotNo" lay-verify="required" autocomplete="off" placeholder="检验批号" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">报检产品</label>
+                    <div class="layui-input-block">
+                        <select name="productId" lay-verify="required">
+                            <option value="">请选择产品</option>
+                            <option th:each="product : ${products}" th:value="${product.id}"
+                                    th:text="${product.code + ' ' + product.name}"></option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">批量</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="batchQty" id="batchQty" lay-verify="required|number" autocomplete="off" placeholder="批量" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">抽样方案</label>
+                    <div class="layui-input-block">
+                        <input type="text" id="schemeCode" readonly placeholder="字码" class="layui-input layui-input-inline" style="width: 70px;">
+                        <input type="text" id="sampleSize" readonly placeholder="样本量" class="layui-input layui-input-inline" style="width: 80px;">
+                        <input type="text" id="acceptCount" readonly placeholder="接收数Ac" class="layui-input layui-input-inline" style="width: 90px;">
+                        <input type="text" id="rejectCount" readonly placeholder="拒收数Re" class="layui-input layui-input-inline" style="width: 90px;">
+                        <div class="layui-form-mid layui-word-aux">按批量自动匹配，保存时以批量为准</div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检验类型</label>
+                    <div class="layui-input-block">
+                        <select name="inspectType" lay-verify="required">
+                            <option value="出厂">出厂</option>
+                            <option value="到货">到货</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">报检单位</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="applyUnit" autocomplete="off" placeholder="报检单位" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">报检人</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="applyBy" autocomplete="off" placeholder="报检人" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">报检日期</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="applyDate" id="applyDate" autocomplete="off" placeholder="报检日期" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">备注</label>
+                    <div class="layui-input-block">
+                        <textarea placeholder="请输入备注" name="remark" class="layui-textarea"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="submit" class="layui-btn layui-btn-normal layui-btn-sm" lay-submit="" lay-filter="sampLot-save">
+                <i class="layui-icon layui-icon-ok"></i>
+                提交
+            </button>
+            <button type="reset" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重置
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['form', 'laydate', 'jquery'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let laydate = layui.laydate;
+        let MODULE_PATH = rootPath+"/SampLotController";
+
+        //报检日期
+        laydate.render({
+            elem: '#applyDate'
+            ,trigger: 'click'
+            ,type: 'datetime'
+        });
+
+        //按批量预览抽样方案
+        function matchScheme(batchQty) {
+            if (batchQty === '' || isNaN(batchQty)) {
+                $('#schemeCode').val('');
+                $('#sampleSize').val('');
+                $('#acceptCount').val('');
+                $('#rejectCount').val('');
+                return;
+            }
+            $.ajax({
+                url: MODULE_PATH + '/matchScheme',
+                data: {batchQty: batchQty},
+                dataType: 'json',
+                type: 'get',
+                success: function (result) {
+                    if (result.code == 200) {
+                        $('#schemeCode').val(result.data.codeLetter);
+                        $('#sampleSize').val(result.data.sampleSize);
+                        $('#acceptCount').val(result.data.acceptCount);
+                        $('#rejectCount').val(result.data.rejectCount);
+                    } else {
+                        $('#schemeCode').val('');
+                        $('#sampleSize').val('');
+                        $('#acceptCount').val('');
+                        $('#rejectCount').val('');
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                    }
+                }
+            });
+        }
+        $('#batchQty').on('input', function () {
+            matchScheme($(this).val());
+        });
+
+        //保存
+        form.on('submit(sampLot-save)', function (data) {
+            let loader = layer.load();
+            $.ajax({
+                url: MODULE_PATH+'/add',
+                data: data.field,
+                dataType: 'json',
+                contentType: 'application/x-www-form-urlencoded',
+                type: 'post',
+                success: function (result) {
+                    if (result.code==200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                            parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                            parent.layui.table.reload("sampLot-table");
+                            layer.close(loader);
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                        layer.close(loader);
+                    }
+                }
+            })
+            return false;
+        });
+    })
+</script>
+</body>
+</html>
