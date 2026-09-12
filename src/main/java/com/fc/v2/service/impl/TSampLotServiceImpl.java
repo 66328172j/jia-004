@@ -94,6 +94,7 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
      */
     @Override
     public int insertTSampLot(TSampLot tSampLot) {
+        validateBatchQty(tSampLot);
         tSampLot.setDelFlag(0);
         // 新登记的检验批为待抽样
         tSampLot.setStatus(0);
@@ -113,6 +114,7 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
         if (dbLot == null) {
             return 0;
         }
+        validateBatchQty(tSampLot);
         if (isBatchQtyLocked(dbLot)) {
             // 已判定(3)/已关闭(4)的检验批批量锁定：判定结论基于当时的批量与抽样方案，
             // 再改批量会导致批量与抽样方案对不上，此处直接拒绝更新
@@ -166,6 +168,22 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     @Override
     public int deleteTSampLotById(Long id) {
         return this.baseMapper.deleteById(id);
+    }
+
+    /**
+     * 校验批量：必填且必须为正整数。批量为 0/负数时没有任何抽样方案可以匹配，
+     * 存进去只会得到一条样本量为空的脏数据，因此在落库前直接拒绝
+     *
+     * @param tSampLot 检验批
+     */
+    private void validateBatchQty(TSampLot tSampLot) {
+        Integer batchQty = tSampLot.getBatchQty();
+        if (batchQty == null) {
+            throw new IllegalArgumentException("批量不能为空");
+        }
+        if (batchQty <= 0) {
+            throw new IllegalArgumentException("批量必须为正整数，不能为0或负数");
+        }
     }
 
     /**

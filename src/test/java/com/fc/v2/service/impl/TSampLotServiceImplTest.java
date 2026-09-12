@@ -15,6 +15,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -115,5 +116,44 @@ class TSampLotServiceImplTest {
         assertFalse(tSampLotService.isBatchQtyLocked(dbLot(2, 500)));
         assertTrue(tSampLotService.isBatchQtyLocked(dbLot(3, 500)));
         assertTrue(tSampLotService.isBatchQtyLocked(dbLot(4, 500)));
+    }
+
+    @Test
+    void 新增_批量为0_拒绝入库() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tSampLotService.insertTSampLot(formLot(0)));
+        assertTrue(ex.getMessage().contains("正整数"));
+        verify(tSampLotMapper, never()).insert(any());
+    }
+
+    @Test
+    void 新增_批量为负数_拒绝入库() {
+        assertThrows(IllegalArgumentException.class,
+                () -> tSampLotService.insertTSampLot(formLot(-10)));
+        verify(tSampLotMapper, never()).insert(any());
+    }
+
+    @Test
+    void 新增_批量为空_拒绝入库() {
+        TSampLot form = new TSampLot();
+        assertThrows(IllegalArgumentException.class,
+                () -> tSampLotService.insertTSampLot(form));
+        verify(tSampLotMapper, never()).insert(any());
+    }
+
+    @Test
+    void 修改_批量改为0_拒绝更新() {
+        when(tSampLotMapper.selectOne(any())).thenReturn(dbLot(0, 500));
+        assertThrows(IllegalArgumentException.class,
+                () -> tSampLotService.updateTSampLot(formLot(0)));
+        verify(tSampLotMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void 新增_合法正整数批量_允许入库() {
+        when(tSampLotMapper.insert(any())).thenReturn(1);
+        int rows = tSampLotService.insertTSampLot(formLot(500));
+        assertEquals(1, rows);
+        verify(tSampLotMapper).insert(any());
     }
 }

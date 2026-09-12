@@ -30,7 +30,7 @@
                 <div class="layui-form-item">
                     <label class="layui-form-label">批量</label>
                     <div class="layui-input-block">
-                        <input type="text" name="batchQty" id="batchQty" lay-verify="required|number" autocomplete="off" placeholder="批量" class="layui-input">
+                        <input type="text" name="batchQty" id="batchQty" lay-verify="required|positiveInt" autocomplete="off" placeholder="批量" class="layui-input">
                     </div>
                 </div>
 
@@ -107,6 +107,15 @@
         let laydate = layui.laydate;
         let MODULE_PATH = rootPath+"/SampLotController";
 
+        //批量必须为正整数，0/负数直接拦下
+        form.verify({
+            positiveInt: function (value) {
+                if (!/^[1-9]\d*$/.test($.trim(value))) {
+                    return '批量必须为正整数';
+                }
+            }
+        });
+
         //报检日期
         laydate.render({
             elem: '#applyDate'
@@ -116,7 +125,7 @@
 
         //按批量预览抽样方案
         function matchScheme(batchQty) {
-            if (batchQty === '' || isNaN(batchQty)) {
+            if (batchQty === '' || isNaN(batchQty) || Number(batchQty) <= 0) {
                 $('#schemeCode').val('');
                 $('#sampleSize').val('');
                 $('#acceptCount').val('');

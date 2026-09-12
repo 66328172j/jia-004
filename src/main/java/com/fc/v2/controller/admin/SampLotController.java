@@ -71,7 +71,11 @@ public class SampLotController extends BaseController {
     @PostMapping("/add")
     @ResponseBody
     public AjaxResult add(TSampLot tSampLot) {
-        return toAjax(tSampLotService.insertTSampLot(tSampLot));
+        try {
+            return toAjax(tSampLotService.insertTSampLot(tSampLot));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 
     @ApiOperation(value = "修改跳转", notes = "修改跳转")
@@ -92,18 +96,25 @@ public class SampLotController extends BaseController {
         if (dbLot == null) {
             return error("检验批不存在或已删除");
         }
-        // 已判定/已关闭的检验批批量锁定，防止批量与已确定的抽样方案不一致
-        if (tSampLotService.isBatchQtyLocked(dbLot)
-                && !Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
-            return error("该检验批已判定，批量不允许修改");
+        try {
+            // 已判定/已关闭的检验批批量锁定，防止批量与已确定的抽样方案不一致
+            if (tSampLotService.isBatchQtyLocked(dbLot)
+                    && !Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
+                return error("该检验批已判定，批量不允许修改");
+            }
+            return toAjax(tSampLotService.updateTSampLot(tSampLot));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
         }
-        return toAjax(tSampLotService.updateTSampLot(tSampLot));
     }
 
     @ApiOperation(value = "按批量匹配抽样方案", notes = "按批量匹配抽样方案")
     @GetMapping("/matchScheme")
     @ResponseBody
     public AjaxResult matchScheme(Integer batchQty) {
+        if (batchQty == null || batchQty <= 0) {
+            return AjaxResult.error("批量必须为正整数");
+        }
         TSampScheme scheme = tSampLotService.matchScheme(batchQty);
         if (scheme == null) {
             return AjaxResult.error("批量[" + batchQty + "]未匹配到抽样方案");
