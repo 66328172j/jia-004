@@ -98,7 +98,8 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
         tSampLot.setDelFlag(0);
         // 新登记的检验批为待抽样
         tSampLot.setStatus(0);
-        fillDerivedFields(tSampLot);
+        // 新增报检要求产品为启用状态，停用产品不允许报检
+        fillDerivedFields(tSampLot, true);
         return this.baseMapper.insert(tSampLot);
     }
 
@@ -121,15 +122,20 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
             if (!Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
                 return 0;
             }
-            // 抽样方案随判定冻结：置 null 让 MyBatis-Plus 跳过这些列，
-            // 避免编辑其他字段时按新方案表重刷已判定的方案
-            fillProductFields(tSampLot);
+            // 产品与抽样方案随判定冻结：置 null 让 MyBatis-Plus 跳过这些列，
+            // 避免编辑其他字段时被篡改请求换绑产品、或按新方案表重刷已判定的方案
+            tSampLot.setProductId(null);
+            tSampLot.setProductCode(null);
+            tSampLot.setProductName(null);
+            tSampLot.setAql(null);
             tSampLot.setSchemeCode(null);
             tSampLot.setSampleSize(null);
             tSampLot.setAcceptCount(null);
             tSampLot.setRejectCount(null);
         } else {
-            fillDerivedFields(tSampLot);
+            // 换绑产品时才强制要求启用：未换产品的普通编辑不受产品后续停用影响
+            boolean requireEnabled = !Objects.equals(dbLot.getProductId(), tSampLot.getProductId());
+            fillDerivedFields(tSampLot, requireEnabled);
         }
         return this.baseMapper.update(tSampLot, new UpdateWrapper<TSampLot>()
                 .eq("id", tSampLot.getId())
@@ -189,10 +195,11 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     /**
      * 填充派生字段：冗余产品编号/名称/AQL，并按批量匹配抽样方案填充字码、样本量、接收数、拒收数
      *
-     * @param tSampLot 检验批
+     * @param tSampLot       检验批
+     * @param requireEnabled 是否要求产品为启用状态（新增报检/换绑产品时为 true）
      */
-    private void fillDerivedFields(TSampLot tSampLot) {
-        fillProductFields(tSampLot);
+    private void fillDerivedFields(TSampLot tSampLot, boolean requireEnabled) {
+        fillProductFields(tSampLot, requireEnabled);
         TSampScheme scheme = matchScheme(tSampLot.getBatchQty());
         if (scheme != null) {
             tSampLot.setSchemeCode(scheme.getCodeLetter());
@@ -203,18 +210,28 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     }
 
     /**
-     * 填充产品派生字段：冗余产品编号/名称/AQL
+     * 填充产品派生字段：产品编号/名称/AQL 一律以产品档案为准。
+     * 页面提交的 productCode/productName/aql 可被篡改成任意值，此处强制用档案值覆盖，
+     * 保证检验批上的产品信息与档案一致；产品不存在/已删除/已停用时直接拒绝落库
      *
-     * @param tSampLot 检验批
+     * @param tSampLot       检验批
+     * @param requireEnabled 是否要求产品为启用状态（新增报检/换绑产品时为 true）
      */
-    private void fillProductFields(TSampLot tSampLot) {
-        if (tSampLot.getProductId() != null) {
-            TSampProduct product = tSampProductMapper.selectById(tSampLot.getProductId());
-            if (product != null) {
-                tSampLot.setProductCode(product.getCode());
-                tSampLot.setProductName(product.getName());
-                tSampLot.setAql(product.getAql());
-            }
+    private void fillProductFields(TSampLot tSampLot, boolean requireEnabled) {
+        if (tSampLot.getProductId() == null) {
+            throw new IllegalArgumentException("报检产品不能为空");
         }
+        TSampProduct product = tSampProductMapper.selectOne(new QueryWrapper<TSampProduct>()
+                .eq("id", tSampLot.getProductId())
+                .eq("del_flag", 0));
+        if (product == null) {
+            throw new IllegalArgumentException("报检产品不存在或已删除");
+        }
+        if (requireEnabled && (product.getStatus() == null || product.getStatus() != 0)) {
+            throw new IllegalArgumentException("产品[" + product.getCode() + " " + product.getName() + "]已停用，不允许报检");
+        }
+        tSampLot.setProductCode(product.getCode());
+        tSampLot.setProductName(product.getName());
+        tSampLot.setAql(product.getAql());
     }
 }

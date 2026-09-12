@@ -103,6 +103,16 @@ public class TSampLot implements Serializable {
     @ApiModelProperty(value = "拒收数")
     private Integer rejectCount;
 
+    /** 不合格样本数（样本检测汇总） */
+    @TableField("defect_count")
+    @ApiModelProperty(value = "不合格样本数")
+    private Integer defectCount;
+
+    /** 合格率（样本检测汇总） */
+    @TableField("pass_rate")
+    @ApiModelProperty(value = "合格率")
+    private java.math.BigDecimal passRate;
+
     /** 状态 0待抽样 1抽样中 2待判定 3已判定 4已关闭 */
     @TableField("status")
     @ApiModelProperty(value = "状态 0待抽样 1抽样中 2待判定 3已判定 4已关闭")
@@ -263,6 +273,22 @@ public class TSampLot implements Serializable {
 
     public void setRejectCount(Integer rejectCount) {
         this.rejectCount = rejectCount;
+    }
+
+    public Integer getDefectCount() {
+        return defectCount;
+    }
+
+    public void setDefectCount(Integer defectCount) {
+        this.defectCount = defectCount;
+    }
+
+    public java.math.BigDecimal getPassRate() {
+        return passRate;
+    }
+
+    public void setPassRate(java.math.BigDecimal passRate) {
+        this.passRate = passRate;
     }
 
     public Integer getStatus() {
