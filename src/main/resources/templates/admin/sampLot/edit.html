@@ -32,7 +32,9 @@
                 <div class="layui-form-item">
                     <label class="layui-form-label">批量</label>
                     <div class="layui-input-block">
-                        <input type="text" name="batchQty" id="batchQty" th:value="*{batchQty}" lay-verify="required|number" autocomplete="off" placeholder="批量" class="layui-input">
+                        <input type="text" name="batchQty" id="batchQty" th:value="*{batchQty}" lay-verify="required|number" autocomplete="off" placeholder="批量" class="layui-input"
+                               th:readonly="${TSampLot.status != null && TSampLot.status >= 3}">
+                        <div class="layui-form-mid layui-word-aux" th:if="${TSampLot.status != null && TSampLot.status >= 3}">检验批已判定/已关闭，批量不可修改</div>
                     </div>
                 </div>
 
@@ -43,7 +45,7 @@
                         <input type="text" id="sampleSize" th:value="*{sampleSize}" readonly placeholder="样本量" class="layui-input layui-input-inline" style="width: 80px;">
                         <input type="text" id="acceptCount" th:value="*{acceptCount}" readonly placeholder="接收数Ac" class="layui-input layui-input-inline" style="width: 90px;">
                         <input type="text" id="rejectCount" th:value="*{rejectCount}" readonly placeholder="拒收数Re" class="layui-input layui-input-inline" style="width: 90px;">
-                        <div class="layui-form-mid layui-word-aux">按批量自动匹配，保存时以批量为准</div>
+                        <div class="layui-form-mid layui-word-aux" th:if="${TSampLot.status == null || TSampLot.status < 3}">按批量自动匹配，保存时以批量为准</div>
                     </div>
                 </div>
 

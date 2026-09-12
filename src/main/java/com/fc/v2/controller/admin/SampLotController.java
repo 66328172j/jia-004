@@ -19,6 +19,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 /**
  * 检验批 controller
  *
@@ -86,6 +88,15 @@ public class SampLotController extends BaseController {
     @PostMapping("/edit")
     @ResponseBody
     public AjaxResult editSave(TSampLot tSampLot) {
+        TSampLot dbLot = tSampLotService.selectTSampLotById(tSampLot.getId());
+        if (dbLot == null) {
+            return error("检验批不存在或已删除");
+        }
+        // 已判定/已关闭的检验批批量锁定，防止批量与已确定的抽样方案不一致
+        if (tSampLotService.isBatchQtyLocked(dbLot)
+                && !Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
+            return error("该检验批已判定，批量不允许修改");
+        }
         return toAjax(tSampLotService.updateTSampLot(tSampLot));
     }
 

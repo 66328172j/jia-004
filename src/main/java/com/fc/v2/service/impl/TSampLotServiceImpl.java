@@ -2,6 +2,7 @@ package com.fc.v2.service.impl;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -108,10 +109,40 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
      */
     @Override
     public int updateTSampLot(TSampLot tSampLot) {
-        fillDerivedFields(tSampLot);
+        TSampLot dbLot = selectTSampLotById(tSampLot.getId());
+        if (dbLot == null) {
+            return 0;
+        }
+        if (isBatchQtyLocked(dbLot)) {
+            // 已判定(3)/已关闭(4)的检验批批量锁定：判定结论基于当时的批量与抽样方案，
+            // 再改批量会导致批量与抽样方案对不上，此处直接拒绝更新
+            if (!Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
+                return 0;
+            }
+            // 抽样方案随判定冻结：置 null 让 MyBatis-Plus 跳过这些列，
+            // 避免编辑其他字段时按新方案表重刷已判定的方案
+            fillProductFields(tSampLot);
+            tSampLot.setSchemeCode(null);
+            tSampLot.setSampleSize(null);
+            tSampLot.setAcceptCount(null);
+            tSampLot.setRejectCount(null);
+        } else {
+            fillDerivedFields(tSampLot);
+        }
         return this.baseMapper.update(tSampLot, new UpdateWrapper<TSampLot>()
                 .eq("id", tSampLot.getId())
                 .eq("del_flag", 0));
+    }
+
+    /**
+     * 判定完成（已判定/已关闭）后批量是否锁定
+     *
+     * @param dbLot 库中检验批
+     * @return true=批量不可再改
+     */
+    @Override
+    public boolean isBatchQtyLocked(TSampLot dbLot) {
+        return dbLot.getStatus() != null && dbLot.getStatus() >= 3;
     }
 
     /**
@@ -143,6 +174,22 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
      * @param tSampLot 检验批
      */
     private void fillDerivedFields(TSampLot tSampLot) {
+        fillProductFields(tSampLot);
+        TSampScheme scheme = matchScheme(tSampLot.getBatchQty());
+        if (scheme != null) {
+            tSampLot.setSchemeCode(scheme.getCodeLetter());
+            tSampLot.setSampleSize(scheme.getSampleSize());
+            tSampLot.setAcceptCount(scheme.getAcceptCount());
+            tSampLot.setRejectCount(scheme.getRejectCount());
+        }
+    }
+
+    /**
+     * 填充产品派生字段：冗余产品编号/名称/AQL
+     *
+     * @param tSampLot 检验批
+     */
+    private void fillProductFields(TSampLot tSampLot) {
         if (tSampLot.getProductId() != null) {
             TSampProduct product = tSampProductMapper.selectById(tSampLot.getProductId());
             if (product != null) {
@@ -150,13 +197,6 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
                 tSampLot.setProductName(product.getName());
                 tSampLot.setAql(product.getAql());
             }
-        }
-        TSampScheme scheme = matchScheme(tSampLot.getBatchQty());
-        if (scheme != null) {
-            tSampLot.setSchemeCode(scheme.getCodeLetter());
-            tSampLot.setSampleSize(scheme.getSampleSize());
-            tSampLot.setAcceptCount(scheme.getAcceptCount());
-            tSampLot.setRejectCount(scheme.getRejectCount());
         }
     }
 }
