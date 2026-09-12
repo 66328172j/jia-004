@@ -6,7 +6,11 @@ import java.util.Date;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
 /**
@@ -15,17 +19,21 @@ import io.swagger.annotations.ApiModelProperty;
  * @author fuce
  * @date 2026-09-12
  */
+@TableName("t_samp_retest")
+@ApiModel(value = "TSampRetest", description = "检验批复检记录")
 public class TSampRetest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 主键 */
     @TableId(type = IdType.ASSIGN_ID)
+    @JsonSerialize(using = ToStringSerializer.class)
     @ApiModelProperty(value = "主键")
     private Long id;
 
     /** 检验批ID */
     @TableField("lot_id")
+    @JsonSerialize(using = ToStringSerializer.class)
     @ApiModelProperty(value = "检验批ID")
     private Long lotId;
 
@@ -65,9 +73,9 @@ public class TSampRetest implements Serializable {
     @ApiModelProperty(value = "复检时间")
     private Date retestTime;
 
-    /** 状态 0待复检 1复检中 2已完成 3已作废 */
+    /** 状态 0待复检 1已完成 2已作废 */
     @TableField("status")
-    @ApiModelProperty(value = "状态 0待复检 1复检中 2已完成 3已作废")
+    @ApiModelProperty(value = "状态 0待复检 1已完成 2已作废")
     private Integer status;
 
     /** 创建者 */
@@ -101,6 +109,16 @@ public class TSampRetest implements Serializable {
     @TableField("remark")
     @ApiModelProperty(value = "备注")
     private String remark;
+
+    /** 检验批号（关联展示用，不落库） */
+    @TableField(exist = false)
+    @ApiModelProperty(value = "检验批号")
+    private String lotNo;
+
+    /** 产品名称（关联展示用，不落库） */
+    @TableField(exist = false)
+    @ApiModelProperty(value = "产品名称")
+    private String productName;
 
     public Long getId() {
         return id;
@@ -228,5 +246,21 @@ public class TSampRetest implements Serializable {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getLotNo() {
+        return lotNo;
+    }
+
+    public void setLotNo(String lotNo) {
+        this.lotNo = lotNo;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
     }
 }

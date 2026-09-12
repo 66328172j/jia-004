@@ -121,3 +121,26 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status);
 -- 已按早期版本建过 t_samp_lot 的库，补样本检测汇总两列（新库无需执行）：
 -- ALTER TABLE t_samp_lot ADD COLUMN defect_count int DEFAULT '0' COMMENT '不合格样本数（样本检测汇总）' AFTER reject_count;
 -- ALTER TABLE t_samp_lot ADD COLUMN pass_rate decimal(5,2) DEFAULT NULL COMMENT '合格率（百分比，样本检测汇总）' AFTER defect_count;
+
+CREATE TABLE IF NOT EXISTS t_samp_retest (
+  id bigint NOT NULL COMMENT '主键',
+  lot_id bigint NOT NULL COMMENT '检验批ID',
+  retest_no varchar(64) NOT NULL COMMENT '复检单号',
+  reason varchar(500) DEFAULT NULL COMMENT '复检原因',
+  sample_qty int DEFAULT NULL COMMENT '复检样本量（应抽样本量的两倍）',
+  origin_result int DEFAULT NULL COMMENT '原判定 0合格 1不合格',
+  retest_result int DEFAULT NULL COMMENT '复检判定 0合格 1不合格',
+  retest_by varchar(64) DEFAULT NULL COMMENT '复检人',
+  retest_time datetime DEFAULT NULL COMMENT '复检时间',
+  status int DEFAULT '0' COMMENT '状态 0待复检 1已完成 2已作废',
+  del_flag int DEFAULT '0' COMMENT '0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sr_no (retest_no),
+  KEY idx_sr_lot (lot_id),
+  KEY idx_sr_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批复检记录';
