@@ -1,5 +1,6 @@
 package com.fc.v2.model.auto;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -118,23 +119,23 @@ public class TSampLot implements Serializable {
     private Integer delFlag;
 
     /** 创建者 */
-    @TableField("create_by")
+    @TableField(value = "create_by", fill = FieldFill.INSERT)
     @ApiModelProperty(value = "创建者")
     private String createBy;
 
     /** 创建时间 */
-    @TableField("create_time")
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @ApiModelProperty(value = "创建时间")
     private Date createTime;
 
     /** 更新者 */
-    @TableField("update_by")
+    @TableField(value = "update_by", fill = FieldFill.UPDATE)
     @ApiModelProperty(value = "更新者")
     private String updateBy;
 
     /** 更新时间 */
-    @TableField("update_time")
+    @TableField(value = "update_time", fill = FieldFill.UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @ApiModelProperty(value = "更新时间")
     private Date updateTime;
