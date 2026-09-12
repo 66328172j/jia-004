@@ -97,10 +97,10 @@ public class SampLotController extends BaseController {
             return error("检验批不存在或已删除");
         }
         try {
-            // 已判定/已关闭的检验批批量锁定，防止批量与已确定的抽样方案不一致
+            // 抽样开始（抽样中/待判定/已判定/已关闭）后批量锁定，防止批量与已确定的抽样方案不一致
             if (tSampLotService.isBatchQtyLocked(dbLot)
                     && !Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
-                return error("该检验批已判定，批量不允许修改");
+                return error("该检验批抽样已开始，批量不允许修改");
             }
             return toAjax(tSampLotService.updateTSampLot(tSampLot));
         } catch (IllegalArgumentException e) {
@@ -122,11 +122,27 @@ public class SampLotController extends BaseController {
         return AjaxResult.successData(200, scheme);
     }
 
+    @Log(title = "检验批关闭", action = "close")
+    @ApiOperation(value = "关闭检验批", notes = "关闭检验批")
+    @PostMapping("/close")
+    @ResponseBody
+    public AjaxResult close(Long id) {
+        try {
+            return toAjax(tSampLotService.closeTSampLot(id));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
+    }
+
     @Log(title = "检验批删除", action = "remove")
     @ApiOperation(value = "删除", notes = "删除")
     @DeleteMapping("/remove")
     @ResponseBody
     public AjaxResult remove(String ids) {
-        return toAjax(tSampLotService.deleteTSampLotByIds(ids));
+        try {
+            return toAjax(tSampLotService.deleteTSampLotByIds(ids));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 }

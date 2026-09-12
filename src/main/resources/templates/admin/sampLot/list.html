@@ -43,11 +43,29 @@
 </script>
 
 <script type="text/html" id="sampLot-bar">
+    <button shiro:hasPermission="system:sampSample:view" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="sample" title="样本检测"><i class="layui-icon layui-icon-template-1"></i>
+    </button>
+
     <button shiro:hasPermission="system:sampLot:edit" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="edit" title="修改"><i class="layui-icon layui-icon-edit"></i>
     </button>
 
+    {{# if (d.status == 3) { }}
+    <button shiro:hasPermission="system:sampLot:edit" class="pear-btn pear-btn-success pear-btn-sm" lay-event="close" title="关闭"><i class="layui-icon layui-icon-ok-circle"></i>
+    </button>
+    {{# } }}
+
     <button shiro:hasPermission="system:sampLot:remove" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="remove" title="删除"><i class="layui-icon layui-icon-delete"></i>
     </button>
+</script>
+
+<script type="text/html" id="sampLot-conclude">
+    {{# if (d.conclude == '合格') { }}
+    <span class="layui-badge layui-bg-green">合格</span>
+    {{# } else if (d.conclude == '不合格') { }}
+    <span class="layui-badge">不合格</span>
+    {{# } else { }}
+    <span class="layui-word-aux">-</span>
+    {{# } }}
 </script>
 
 <script type="text/html" id="sampLot-inspectType">
@@ -98,10 +116,13 @@
                 {title: '样本量', field: 'sampleSize', align: 'center'},
                 {title: '接收数Ac', field: 'acceptCount', align: 'center'},
                 {title: '拒收数Re', field: 'rejectCount', align: 'center'},
+                {title: '不合格数', field: 'defectCount', align: 'center'},
+                {title: '合格率(%)', field: 'passRate', align: 'center'},
+                {title: '判定结论', field: 'conclude', align: 'center', templet: '#sampLot-conclude'},
                 {title: '状态', field: 'status', align: 'center', templet: '#sampLot-status'},
                 {title: '创建人', field: 'createBy', align: 'center'},
                 {title: '创建时间', field: 'createTime', align: 'center'},
-                {title: '操作', toolbar: '#sampLot-bar', align: 'center'}
+                {title: '操作', toolbar: '#sampLot-bar', align: 'center', width: 170}
             ]
         ]
 
@@ -126,6 +147,10 @@
                 window.remove(obj);
             } else if (obj.event === 'edit') {
                 window.edit(obj);
+            } else if (obj.event === 'sample') {
+                window.sample(obj);
+            } else if (obj.event === 'close') {
+                window.close(obj);
             }
         });
 
@@ -165,6 +190,33 @@
                 shade: 0.1,
                 area: ['500px', '600px'],
                 content: MODULE_PATH + 'edit/' + obj.data['id']
+            });
+        }
+        //样本检测记录：按检验批查看该批样本并录入检测结果
+        window.sample = function (obj) {
+            window.location.href = rootPath + '/SampSampleController/view?lotId=' + obj.data['id'];
+        }
+        //关闭：已判定的检验批关闭后状态流转为已关闭
+        window.close = function (obj) {
+            layer.confirm('确定要关闭该检验批？关闭后检测记录将冻结', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "close",
+                    data: {id: obj.data['id']},
+                    dataType: 'json',
+                    type: 'post',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code == 200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampLot-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
             });
         }
         //删除

@@ -110,6 +110,11 @@ public class TSampSample implements Serializable {
     @ApiModelProperty(value = "备注")
     private String remark;
 
+    /** 检验批号（关联展示用，不落库） */
+    @TableField(exist = false)
+    @ApiModelProperty(value = "检验批号")
+    private String lotNo;
+
     public Long getId() {
         return id;
     }
@@ -236,5 +241,13 @@ public class TSampSample implements Serializable {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getLotNo() {
+        return lotNo;
+    }
+
+    public void setLotNo(String lotNo) {
+        this.lotNo = lotNo;
     }
 }

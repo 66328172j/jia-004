@@ -11,9 +11,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fc.v2.common.support.ConvertUtil;
 import com.fc.v2.mapper.auto.TSampLotMapper;
 import com.fc.v2.mapper.auto.TSampProductMapper;
+import com.fc.v2.mapper.auto.TSampSampleMapper;
 import com.fc.v2.mapper.auto.TSampSchemeMapper;
 import com.fc.v2.model.auto.TSampLot;
 import com.fc.v2.model.auto.TSampProduct;
+import com.fc.v2.model.auto.TSampSample;
 import com.fc.v2.model.auto.TSampScheme;
 import com.fc.v2.service.ITSampLotService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +35,9 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
 
     @Autowired
     private TSampProductMapper tSampProductMapper;
+
+    @Autowired
+    private TSampSampleMapper tSampSampleMapper;
 
     /**
      * 查询检验批
@@ -117,13 +122,14 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
         }
         validateBatchQty(tSampLot);
         if (isBatchQtyLocked(dbLot)) {
-            // 已判定(3)/已关闭(4)的检验批批量锁定：判定结论基于当时的批量与抽样方案，
-            // 再改批量会导致批量与抽样方案对不上，此处直接拒绝更新
+            // 抽样中(1)/待判定(2)/已判定(3)/已关闭(4)的检验批批量与抽样方案冻结：
+            // 样本编号按应抽样本量 S01..Sn 生成，判定结论基于抽样方案的 Ac/Re，
+            // 抽样开始后再改批量会导致样本量、编号与方案对不上，此处直接拒绝更新
             if (!Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
                 return 0;
             }
-            // 产品与抽样方案随判定冻结：置 null 让 MyBatis-Plus 跳过这些列，
-            // 避免编辑其他字段时被篡改请求换绑产品、或按新方案表重刷已判定的方案
+            // 产品与抽样方案随抽样冻结：置 null 让 MyBatis-Plus 跳过这些列，
+            // 避免编辑其他字段时被篡改请求换绑产品、或按新方案表重刷已确定的方案
             tSampLot.setProductId(null);
             tSampLot.setProductCode(null);
             tSampLot.setProductName(null);
@@ -143,14 +149,35 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     }
 
     /**
-     * 判定完成（已判定/已关闭）后批量是否锁定
+     * 抽样开始（抽样中及之后状态）后批量是否锁定
      *
      * @param dbLot 库中检验批
      * @return true=批量不可再改
      */
     @Override
     public boolean isBatchQtyLocked(TSampLot dbLot) {
-        return dbLot.getStatus() != null && dbLot.getStatus() >= 3;
+        return dbLot.getStatus() != null && dbLot.getStatus() >= 1;
+    }
+
+    /**
+     * 关闭检验批：只有已判定(3)的批可以关闭，关闭后状态为已关闭(4)且检测记录冻结
+     *
+     * @param id 检验批ID
+     * @return 结果
+     */
+    @Override
+    public int closeTSampLot(Long id) {
+        TSampLot dbLot = selectTSampLotById(id);
+        if (dbLot == null) {
+            return 0;
+        }
+        if (dbLot.getStatus() == null || dbLot.getStatus() != 3) {
+            throw new IllegalArgumentException("只有已判定的检验批才允许关闭");
+        }
+        return this.baseMapper.update(null, new UpdateWrapper<TSampLot>()
+                .eq("id", id)
+                .eq("del_flag", 0)
+                .set("status", 4));
     }
 
     /**
@@ -162,6 +189,13 @@ public class TSampLotServiceImpl extends ServiceImpl<TSampLotMapper, TSampLot> i
     @Override
     public int deleteTSampLotByIds(String ids) {
         Long[] idArr = ConvertUtil.toLongArray(ids);
+        // 已录入样本的检验批不允许直接删除，避免样本检测记录失去归属；先删样本再删批
+        Integer sampleCount = tSampSampleMapper.selectCount(new QueryWrapper<TSampSample>()
+                .in("lot_id", Arrays.asList(idArr))
+                .eq("del_flag", 0));
+        if (sampleCount != null && sampleCount > 0) {
+            throw new IllegalArgumentException("该检验批下存在样本检测记录，不允许删除");
+        }
         return this.baseMapper.deleteBatchIds(Arrays.asList(idArr));
     }
 

@@ -5,7 +5,9 @@ import com.fc.v2.common.base.BaseController;
 import com.fc.v2.common.domain.AjaxResult;
 import com.fc.v2.common.domain.ResultTable;
 import com.fc.v2.common.log.Log;
+import com.fc.v2.model.auto.TSampLot;
 import com.fc.v2.model.auto.TSampSample;
+import com.fc.v2.service.ITSampLotService;
 import com.fc.v2.service.ITSampSampleService;
 import com.fc.v2.util.StringUtils;
 import com.github.pagehelper.PageInfo;
@@ -32,9 +34,17 @@ public class SampSampleController extends BaseController {
     @Autowired
     private ITSampSampleService tSampSampleService;
 
+    @Autowired
+    private ITSampLotService tSampLotService;
+
     @ApiOperation(value = "分页跳转", notes = "分页跳转")
     @GetMapping("/view")
-    public String view() {
+    public String view(@RequestParam(required = false) Long lotId, ModelMap mmap) {
+        mmap.put("lotId", lotId);
+        mmap.put("lots", tSampLotService.selectTSampLotList(new QueryWrapper<TSampLot>()));
+        if (lotId != null) {
+            mmap.put("lot", tSampLotService.selectTSampLotById(lotId));
+        }
         return prefix + "/list";
     }
 
@@ -44,6 +54,7 @@ public class SampSampleController extends BaseController {
     @ResponseBody
     public ResultTable list(TSampSample tSampSample) {
         QueryWrapper<TSampSample> queryWrapper = new QueryWrapper<TSampSample>();
+        // 按检验批查这个批下面的样本，编号排序在service中统一处理
         queryWrapper.eq(tSampSample.getLotId() != null, "lot_id", tSampSample.getLotId());
         queryWrapper.like(StringUtils.isNotEmpty(tSampSample.getSampleNo()), "sample_no", tSampSample.getSampleNo());
         startPage();
@@ -53,8 +64,26 @@ public class SampSampleController extends BaseController {
 
     @ApiOperation(value = "新增跳转", notes = "新增跳转")
     @GetMapping("/add")
-    public String add(@RequestParam(required = false) Long lotId, ModelMap mmap) {
+    public String add(@RequestParam Long lotId, ModelMap mmap) {
+        TSampLot lot = tSampLotService.selectTSampLotById(lotId);
+        java.util.List<String> recordedNos = lot == null
+                ? java.util.Collections.<String>emptyList()
+                : tSampSampleService.selectRecordedSampleNos(lotId);
         mmap.put("lotId", lotId);
+        mmap.put("lot", lot);
+        mmap.put("recordedCount", recordedNos.size());
+        // 样本编号服务端生成，页面只做提示，提交时以后端实际生成结果为准
+        String nextNo = null;
+        if (lot != null && lot.getSampleSize() != null) {
+            for (int i = 1; i <= lot.getSampleSize(); i++) {
+                String no = String.format("S%02d", i);
+                if (!recordedNos.contains(no)) {
+                    nextNo = no;
+                    break;
+                }
+            }
+        }
+        mmap.put("nextNo", nextNo);
         return prefix + "/add";
     }
 
@@ -63,7 +92,22 @@ public class SampSampleController extends BaseController {
     @PostMapping("/add")
     @ResponseBody
     public AjaxResult add(TSampSample tSampSample) {
-        return toAjax(tSampSampleService.insertTSampSample(tSampSample));
+        try {
+            return toAjax(tSampSampleService.insertTSampSample(tSampSample));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "修改跳转", notes = "修改跳转")
+    @GetMapping("/edit/{id}")
+    public String edit(@PathVariable("id") Long id, ModelMap mmap) {
+        TSampSample sample = tSampSampleService.selectTSampSampleById(id);
+        mmap.put("TSampSample", sample);
+        if (sample != null) {
+            mmap.put("lot", tSampLotService.selectTSampLotById(sample.getLotId()));
+        }
+        return prefix + "/edit";
     }
 
     @Log(title = "样本检测记录修改", action = "edit")
@@ -71,7 +115,11 @@ public class SampSampleController extends BaseController {
     @PostMapping("/edit")
     @ResponseBody
     public AjaxResult edit(TSampSample tSampSample) {
-        return toAjax(tSampSampleService.updateTSampSample(tSampSample));
+        try {
+            return toAjax(tSampSampleService.updateTSampSample(tSampSample));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 
     @Log(title = "样本检测记录删除", action = "remove")
@@ -79,6 +127,10 @@ public class SampSampleController extends BaseController {
     @DeleteMapping("/remove")
     @ResponseBody
     public AjaxResult remove(String ids) {
-        return toAjax(tSampSampleService.deleteTSampSampleByIds(ids));
+        try {
+            return toAjax(tSampSampleService.deleteTSampSampleByIds(ids));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 }

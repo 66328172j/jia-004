@@ -7,7 +7,12 @@ INSERT INTO `t_sys_permission` VALUES
  (930000000000000003, '检验批集合', '检验批集合', '/SampLotController/list', 0, 930000000000000002, 'system:sampLot:list', 2, '', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
  (930000000000000004, '检验批添加', '检验批添加', '/SampLotController/add', 0, 930000000000000002, 'system:sampLot:add', 2, 'layui-icon layui-icon-add-1', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
  (930000000000000005, '检验批删除', '检验批删除', '/SampLotController/remove', 0, 930000000000000002, 'system:sampLot:remove', 2, 'layui-icon layui-icon-delete', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
- (930000000000000006, '检验批修改', '检验批修改', '/SampLotController/edit', 0, 930000000000000002, 'system:sampLot:edit', 2, 'layui-icon layui-icon-edit', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL);
+ (930000000000000006, '检验批修改', '检验批修改', '/SampLotController/edit', 0, 930000000000000002, 'system:sampLot:edit', 2, 'layui-icon layui-icon-edit', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000010, '样本检测记录', '样本检测记录展示', '/SampSampleController/view', 0, 930000000000000001, 'system:sampSample:view', 1, 'layui-icon layui-icon-template-1', 2, 0, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000011, '样本记录集合', '样本记录集合', '/SampSampleController/list', 0, 930000000000000010, 'system:sampSample:list', 2, '', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000012, '样本记录添加', '样本记录添加', '/SampSampleController/add', 0, 930000000000000010, 'system:sampSample:add', 2, 'layui-icon layui-icon-add-1', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000013, '样本记录删除', '样本记录删除', '/SampSampleController/remove', 0, 930000000000000010, 'system:sampSample:remove', 2, 'layui-icon layui-icon-delete', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000014, '样本记录修改', '样本记录修改', '/SampSampleController/edit', 0, 930000000000000010, 'system:sampSample:edit', 2, 'layui-icon layui-icon-edit', NULL, 0, 'admin', sysdate(), NULL, NULL, NULL);
 
 -- 授权给管理员角色（488243256161730560）
 INSERT INTO `t_sys_permission_role` VALUES
@@ -16,4 +21,9 @@ INSERT INTO `t_sys_permission_role` VALUES
  (930000000000000103, 488243256161730560, 930000000000000003, 'admin', sysdate(), NULL, NULL, NULL),
  (930000000000000104, 488243256161730560, 930000000000000004, 'admin', sysdate(), NULL, NULL, NULL),
  (930000000000000105, 488243256161730560, 930000000000000005, 'admin', sysdate(), NULL, NULL, NULL),
- (930000000000000106, 488243256161730560, 930000000000000006, 'admin', sysdate(), NULL, NULL, NULL);
+ (930000000000000106, 488243256161730560, 930000000000000006, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000110, 488243256161730560, 930000000000000010, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000111, 488243256161730560, 930000000000000011, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000112, 488243256161730560, 930000000000000012, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000113, 488243256161730560, 930000000000000013, 'admin', sysdate(), NULL, NULL, NULL),
+ (930000000000000114, 488243256161730560, 930000000000000014, 'admin', sysdate(), NULL, NULL, NULL);
