@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('样本检测结果修改')"/>
+</head>
+<body>
+<form class="layui-form" th:if="${TSampSample != null}" th:object="${TSampSample}">
+    <input type="hidden" name="id" th:value="*{id}">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <div class="layui-form-item" th:if="${lot != null}">
+                    <label class="layui-form-label">检验批</label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid">
+                            <b th:text="${lot.lotNo}"></b>
+                            <span th:text="${lot.productName}"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">样本编号</label>
+                    <div class="layui-input-block">
+                        <input type="text" th:value="*{sampleNo}" readonly class="layui-input layui-bg-gray">
+                        <div class="layui-form-mid layui-word-aux">样本编号系统生成，不允许修改</div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检测项编码</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="itemCode" th:value="*{itemCode}" lay-verify="required" autocomplete="off" placeholder="检测项编码" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检测项名称</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="itemName" th:value="*{itemName}" lay-verify="required" autocomplete="off" placeholder="检测项名称" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">标准值</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="stdValue" th:value="*{stdValue}" lay-verify="required" autocomplete="off" placeholder="标准值/判定依据" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">实测值</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="measuredValue" th:value="*{measuredValue}" lay-verify="required" autocomplete="off" placeholder="实测值" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">单项判定</label>
+                    <div class="layui-input-block">
+                        <input type="radio" name="itemResult" value="0" title="合格" th:checked="*{itemResult == 0}">
+                        <input type="radio" name="itemResult" value="1" title="不合格" th:checked="*{itemResult == 1}">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检测人</label>
+                    <div class="layui-input-block">
+                        <input type="text" th:value="*{checkBy}" readonly class="layui-input layui-bg-gray">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检测时间</label>
+                    <div class="layui-input-block">
+                        <input type="text" th:value="${#dates.format(TSampSample.checkTime, 'yyyy-MM-dd HH:mm:ss')}" readonly class="layui-input layui-bg-gray">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">备注</label>
+                    <div class="layui-input-block">
+                        <textarea placeholder="请输入备注" name="remark" class="layui-textarea" th:text="*{remark}"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="submit" class="layui-btn layui-btn-normal layui-btn-sm" lay-submit="" lay-filter="sampSample-update">
+                <i class="layui-icon layui-icon-ok"></i>
+                提交
+            </button>
+            <button type="reset" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重置
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['form', 'jquery'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let MODULE_PATH = rootPath + "/SampSampleController";
+
+        //保存
+        form.on('submit(sampSample-update)', function (data) {
+            let loader = layer.load();
+            $.ajax({
+                url: MODULE_PATH + '/edit',
+                data: data.field,
+                dataType: 'json',
+                contentType: 'application/x-www-form-urlencoded',
+                type: 'post',
+                success: function (result) {
+                    if (result.code == 200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                            parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                            parent.layui.table.reload("sampSample-table");
+                            try {
+                                parent.parent.layui.table.reload("sampLot-table");
+                            } catch (e) {
+                            }
+                            layer.close(loader);
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1500});
+                        layer.close(loader);
+                    }
+                }
+            })
+            return false;
+        });
+    })
+</script>
+</body>
+</html>
