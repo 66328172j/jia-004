@@ -49,6 +49,22 @@ public interface ITSampLotService extends IService<TSampLot> {
     public int updateTSampLot(TSampLot tSampLot);
 
     /**
+     * 判定完成（已判定/已关闭）后批量是否锁定
+     *
+     * @param dbLot 库中检验批
+     * @return true=批量不可再改
+     */
+    public boolean isBatchQtyLocked(TSampLot dbLot);
+
+    /**
+     * 关闭检验批：仅已判定的检验批可关闭，关闭后状态流转为已关闭
+     *
+     * @param id 检验批ID
+     * @return 结果
+     */
+    public int closeTSampLot(Long id);
+
+    /**
      * 批量删除检验批
      *
      * @param ids 需要删除的数据ID

@@ -1,5 +1,6 @@
 package com.fc.v2.model.auto;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -102,6 +103,16 @@ public class TSampLot implements Serializable {
     @ApiModelProperty(value = "拒收数")
     private Integer rejectCount;
 
+    /** 不合格样本数（样本检测汇总） */
+    @TableField("defect_count")
+    @ApiModelProperty(value = "不合格样本数")
+    private Integer defectCount;
+
+    /** 合格率（样本检测汇总） */
+    @TableField("pass_rate")
+    @ApiModelProperty(value = "合格率")
+    private java.math.BigDecimal passRate;
+
     /** 状态 0待抽样 1抽样中 2待判定 3已判定 4已关闭 */
     @TableField("status")
     @ApiModelProperty(value = "状态 0待抽样 1抽样中 2待判定 3已判定 4已关闭")
@@ -112,29 +123,39 @@ public class TSampLot implements Serializable {
     @ApiModelProperty(value = "判定结论")
     private String conclude;
 
+    /** 质量等级字码（质量定等回写） */
+    @TableField("grade_code")
+    @ApiModelProperty(value = "质量等级字码")
+    private String gradeCode;
+
+    /** 质量等级名称（质量定等回写） */
+    @TableField("grade_name")
+    @ApiModelProperty(value = "质量等级名称")
+    private String gradeName;
+
     /** 逻辑删除标记（0正常 1删除） */
     @TableField("del_flag")
     @ApiModelProperty(value = "逻辑删除标记（0正常 1删除）")
     private Integer delFlag;
 
     /** 创建者 */
-    @TableField("create_by")
+    @TableField(value = "create_by", fill = FieldFill.INSERT)
     @ApiModelProperty(value = "创建者")
     private String createBy;
 
     /** 创建时间 */
-    @TableField("create_time")
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @ApiModelProperty(value = "创建时间")
     private Date createTime;
 
     /** 更新者 */
-    @TableField("update_by")
+    @TableField(value = "update_by", fill = FieldFill.UPDATE)
     @ApiModelProperty(value = "更新者")
     private String updateBy;
 
     /** 更新时间 */
-    @TableField("update_time")
+    @TableField(value = "update_time", fill = FieldFill.UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @ApiModelProperty(value = "更新时间")
     private Date updateTime;
@@ -264,6 +285,22 @@ public class TSampLot implements Serializable {
         this.rejectCount = rejectCount;
     }
 
+    public Integer getDefectCount() {
+        return defectCount;
+    }
+
+    public void setDefectCount(Integer defectCount) {
+        this.defectCount = defectCount;
+    }
+
+    public java.math.BigDecimal getPassRate() {
+        return passRate;
+    }
+
+    public void setPassRate(java.math.BigDecimal passRate) {
+        this.passRate = passRate;
+    }
+
     public Integer getStatus() {
         return status;
     }
@@ -278,6 +315,22 @@ public class TSampLot implements Serializable {
 
     public void setConclude(String conclude) {
         this.conclude = conclude;
+    }
+
+    public String getGradeCode() {
+        return gradeCode;
+    }
+
+    public void setGradeCode(String gradeCode) {
+        this.gradeCode = gradeCode;
+    }
+
+    public String getGradeName() {
+        return gradeName;
+    }
+
+    public void setGradeName(String gradeName) {
+        this.gradeName = gradeName;
     }
 
     public Integer getDelFlag() {
