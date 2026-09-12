@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('检验批列表')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">检验批号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="lotNo" placeholder="" class="layui-input">
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampLot-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampLot-table" lay-filter="sampLot-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampLot-toolbar">
+    <button shiro:hasPermission="system:sampLot:add" class="pear-btn pear-btn-primary pear-btn-md" lay-event="add">
+        <i class="layui-icon layui-icon-add-1"></i>
+        新增
+    </button>
+    <button shiro:hasPermission="system:sampLot:remove" class="pear-btn pear-btn-danger pear-btn-md" lay-event="batchRemove">
+        <i class="layui-icon layui-icon-delete"></i>
+        删除
+    </button>
+</script>
+
+<script type="text/html" id="sampLot-bar">
+    <button shiro:hasPermission="system:sampSample:view" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="sample" title="样本检测"><i class="layui-icon layui-icon-template-1"></i>
+    </button>
+
+    <button shiro:hasPermission="system:sampLot:edit" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="edit" title="修改"><i class="layui-icon layui-icon-edit"></i>
+    </button>
+
+    {{# if (d.status == 3) { }}
+    <button shiro:hasPermission="system:sampLot:edit" class="pear-btn pear-btn-success pear-btn-sm" lay-event="close" title="关闭"><i class="layui-icon layui-icon-ok-circle"></i>
+    </button>
+    {{# } }}
+
+    <button shiro:hasPermission="system:sampLot:remove" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="remove" title="删除"><i class="layui-icon layui-icon-delete"></i>
+    </button>
+</script>
+
+<script type="text/html" id="sampLot-conclude">
+    {{# if (d.conclude == '合格') { }}
+    <span class="layui-badge layui-bg-green">合格</span>
+    {{# } else if (d.conclude == '不合格') { }}
+    <span class="layui-badge">不合格</span>
+    {{# } else { }}
+    <span class="layui-word-aux">-</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="sampLot-inspectType">
+    {{# if (d.inspectType == '出厂') { }}
+    <span class="layui-badge layui-bg-blue">出厂</span>
+    {{# } else if (d.inspectType == '到货') { }}
+    <span class="layui-badge layui-bg-orange">到货</span>
+    {{# } else { }}
+    {{d.inspectType}}
+    {{# } }}
+</script>
+
+<script type="text/html" id="sampLot-status">
+    {{# if (d.status == 0) { }}
+    <span class="layui-badge layui-bg-blue">待抽样</span>
+    {{# } else if (d.status == 1) { }}
+    <span class="layui-badge layui-bg-orange">抽样中</span>
+    {{# } else if (d.status == 2) { }}
+    <span class="layui-badge layui-bg-cyan">待判定</span>
+    {{# } else if (d.status == 3) { }}
+    <span class="layui-badge layui-bg-green">已判定</span>
+    {{# } else if (d.status == 4) { }}
+    <span class="layui-badge layui-bg-gray">已关闭</span>
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampLotController/";
+        let cols = [
+            [
+                {type: 'checkbox'},
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '检验批号', field: 'lotNo', align: 'left'},
+                {title: '产品编号', field: 'productCode', align: 'left'},
+                {title: '产品名称', field: 'productName', align: 'left'},
+                {title: '批量', field: 'batchQty', align: 'center'},
+                {title: '检验类型', field: 'inspectType', align: 'center', templet: '#sampLot-inspectType'},
+                {title: '报检单位', field: 'applyUnit', align: 'left'},
+                {title: '报检人', field: 'applyBy', align: 'center'},
+                {title: '报检日期', field: 'applyDate', align: 'center'},
+                {title: '字码', field: 'schemeCode', align: 'center'},
+                {title: '样本量', field: 'sampleSize', align: 'center'},
+                {title: '接收数Ac', field: 'acceptCount', align: 'center'},
+                {title: '拒收数Re', field: 'rejectCount', align: 'center'},
+                {title: '不合格数', field: 'defectCount', align: 'center'},
+                {title: '合格率(%)', field: 'passRate', align: 'center'},
+                {title: '判定结论', field: 'conclude', align: 'center', templet: '#sampLot-conclude'},
+                {title: '状态', field: 'status', align: 'center', templet: '#sampLot-status'},
+                {title: '创建人', field: 'createBy', align: 'center'},
+                {title: '创建时间', field: 'createTime', align: 'center'},
+                {title: '操作', toolbar: '#sampLot-bar', align: 'center', width: 170}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampLot-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampLot-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampLot-table)', function (obj) {
+            if (obj.event === 'remove') {
+                window.remove(obj);
+            } else if (obj.event === 'edit') {
+                window.edit(obj);
+            } else if (obj.event === 'sample') {
+                window.sample(obj);
+            } else if (obj.event === 'close') {
+                window.close(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampLot-table)', function (obj) {
+            if (obj.event === 'add') {
+                window.add();
+            } else if (obj.event === 'refresh') {
+                window.refresh();
+            } else if (obj.event === 'batchRemove') {
+                window.batchRemove(obj);
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampLot-query)', function (data) {
+            table.reload('sampLot-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+
+        //添加
+        window.add = function () {
+            layer.open({
+                type: 2,
+                title: '新增',
+                shade: 0.1,
+                area: ['500px', '600px'],
+                content: MODULE_PATH + 'add'
+            });
+        }
+        //修改
+        window.edit = function (obj) {
+            layer.open({
+                type: 2,
+                title: '修改',
+                shade: 0.1,
+                area: ['500px', '600px'],
+                content: MODULE_PATH + 'edit/' + obj.data['id']
+            });
+        }
+        //样本检测记录：按检验批查看该批样本并录入检测结果
+        window.sample = function (obj) {
+            window.location.href = rootPath + '/SampSampleController/view?lotId=' + obj.data['id'];
+        }
+        //关闭：已判定的检验批关闭后状态流转为已关闭
+        window.close = function (obj) {
+            layer.confirm('确定要关闭该检验批？关闭后检测记录将冻结', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "close",
+                    data: {id: obj.data['id']},
+                    dataType: 'json',
+                    type: 'post',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code == 200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampLot-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+        //删除
+        window.remove = function (obj) {
+            layer.confirm('确定要删除该检验批', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                obj.del();
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+
+        //批量删除
+        window.batchRemove = function (obj) {
+            let data = table.checkStatus(obj.config.id).data;
+            if (data.length === 0) {
+                layer.msg("未选中数据", {icon: 3, time: 1000});
+                return false;
+            }
+            let ids = "";
+            for (let i = 0; i < data.length; i++) {
+                ids += data[i].id + ",";
+            }
+            ids = ids.substr(0, ids.length - 1);
+            layer.confirm('确定要删除这些检验批', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + ids,
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampLot-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampLot-table');
+        }
+    })
+</script>
+</html>
