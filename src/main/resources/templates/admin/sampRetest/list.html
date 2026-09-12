@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('复检单列表')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">检验批</label>
+                <div class="layui-input-inline">
+                    <select name="lotId" id="lotId">
+                        <option value="">全部检验批</option>
+                        <option th:each="l : ${lots}" th:value="${l.id}"
+                                th:selected="${lotId != null && lotId == l.id}"
+                                th:text="${l.lotNo + '（' + (l.productName == null ? '' : l.productName) + '）'}"></option>
+                    </select>
+                </div>
+                <label class="layui-form-label">复检单号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="retestNo" placeholder="复检单号" class="layui-input">
+                </div>
+                <label class="layui-form-label">状态</label>
+                <div class="layui-input-inline">
+                    <select name="status">
+                        <option value="">全部</option>
+                        <option value="0">待复检</option>
+                        <option value="1">已完成</option>
+                        <option value="2">已作废</option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampRetest-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampRetest-table" lay-filter="sampRetest-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampRetest-toolbar">
+    <button shiro:hasPermission="system:sampRetest:add" class="pear-btn pear-btn-primary pear-btn-md" lay-event="add">
+        <i class="layui-icon layui-icon-add-1"></i>
+        发起复检
+    </button>
+    <button shiro:hasPermission="system:sampRetest:remove" class="pear-btn pear-btn-danger pear-btn-md" lay-event="batchRemove">
+        <i class="layui-icon layui-icon-delete"></i>
+        删除
+    </button>
+    <button th:if="${lotId != null}" shiro:hasPermission="system:sampLot:view" class="pear-btn pear-btn-warming pear-btn-md" lay-event="lotView">
+        <i class="layui-icon layui-icon-return"></i>
+        返回检验批
+    </button>
+</script>
+
+<script type="text/html" id="sampRetest-bar">
+    {{# if (d.status == 0) { }}
+    <button shiro:hasPermission="system:sampRetest:finish" class="pear-btn pear-btn-success pear-btn-sm" lay-event="finish" title="录入复检结果"><i class="layui-icon layui-icon-ok-circle"></i>
+    </button>
+    <button shiro:hasPermission="system:sampRetest:cancel" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="cancel" title="作废"><i class="layui-icon layui-icon-close-fill"></i>
+    </button>
+    {{# } }}
+
+    <button shiro:hasPermission="system:sampRetest:remove" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="remove" title="删除"><i class="layui-icon layui-icon-delete"></i>
+    </button>
+</script>
+
+<script type="text/html" id="sampRetest-result">
+    {{# if (d.retestResult == 0) { }}
+    <span class="layui-badge layui-bg-green">合格</span>
+    {{# } else if (d.retestResult == 1) { }}
+    <span class="layui-badge">不合格</span>
+    {{# } else { }}
+    <span class="layui-word-aux">-</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="sampRetest-originResult">
+    {{# if (d.originResult == 0) { }}
+    <span class="layui-badge layui-bg-green">合格</span>
+    {{# } else if (d.originResult == 1) { }}
+    <span class="layui-badge">不合格</span>
+    {{# } else { }}
+    <span class="layui-word-aux">-</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="sampRetest-status">
+    {{# if (d.status == 0) { }}
+    <span class="layui-badge layui-bg-orange">待复检</span>
+    {{# } else if (d.status == 1) { }}
+    <span class="layui-badge layui-bg-green">已完成</span>
+    {{# } else if (d.status == 2) { }}
+    <span class="layui-badge layui-bg-gray">已作废</span>
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampRetestController/";
+        // 从检验批列表带入时默认只查该批，未带参时为 null（查全部）；
+        // id 为雪花长整型，按字符串内联避免 JS 数字精度丢失
+        let defaultLotId = /*[[${lotId != null ? lotId.toString() : null}]]*/ null;
+        let cols = [
+            [
+                {type: 'checkbox'},
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '检验批号', field: 'lotNo', align: 'left'},
+                {title: '产品名称', field: 'productName', align: 'left'},
+                {title: '复检单号', field: 'retestNo', align: 'left'},
+                {title: '复检原因', field: 'reason', align: 'left'},
+                {title: '复检样本量', field: 'sampleQty', align: 'center'},
+                {title: '原判定', field: 'originResult', align: 'center', templet: '#sampRetest-originResult'},
+                {title: '复检结果', field: 'retestResult', align: 'center', templet: '#sampRetest-result'},
+                {title: '复检人', field: 'retestBy', align: 'center'},
+                {title: '复检时间', field: 'retestTime', align: 'center'},
+                {title: '状态', field: 'status', align: 'center', templet: '#sampRetest-status'},
+                {title: '创建时间', field: 'createTime', align: 'center'},
+                {title: '操作', toolbar: '#sampRetest-bar', align: 'center', width: 130}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampRetest-table',
+            url: MODULE_PATH + 'list',
+            where: {lotId: defaultLotId ? defaultLotId : ''},
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampRetest-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampRetest-table)', function (obj) {
+            if (obj.event === 'remove') {
+                window.remove(obj);
+            } else if (obj.event === 'finish') {
+                window.finish(obj);
+            } else if (obj.event === 'cancel') {
+                window.cancel(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampRetest-table)', function (obj) {
+            if (obj.event === 'add') {
+                window.add();
+            } else if (obj.event === 'refresh') {
+                window.refresh();
+            } else if (obj.event === 'batchRemove') {
+                window.batchRemove(obj);
+            } else if (obj.event === 'lotView') {
+                window.location.href = rootPath + '/SampLotController/view';
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampRetest-query)', function (data) {
+            table.reload('sampRetest-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //发起复检：检验批在查询区选定则带入，不选则在弹窗里挑
+        window.add = function () {
+            let lotId = $('#lotId').val();
+            layer.open({
+                type: 2,
+                title: '发起复检',
+                shade: 0.1,
+                area: ['500px', '560px'],
+                content: MODULE_PATH + 'add' + (lotId ? '?lotId=' + lotId : '')
+            });
+        }
+        //录入复检结果
+        window.finish = function (obj) {
+            layer.open({
+                type: 2,
+                title: '录入复检结果',
+                shade: 0.1,
+                area: ['500px', '520px'],
+                content: MODULE_PATH + 'finish/' + obj.data['id']
+            });
+        }
+        //作废：只有待复检的复检单允许作废
+        window.cancel = function (obj) {
+            layer.confirm('确定要作废该复检单？作废后不能再录入复检结果', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "cancel",
+                    data: {id: obj.data['id']},
+                    dataType: 'json',
+                    type: 'post',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code == 200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampRetest-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+        //删除
+        window.remove = function (obj) {
+            layer.confirm('确定要删除该复检单', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                obj.del();
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+
+        //批量删除
+        window.batchRemove = function (obj) {
+            let data = table.checkStatus(obj.config.id).data;
+            if (data.length === 0) {
+                layer.msg("未选中数据", {icon: 3, time: 1000});
+                return false;
+            }
+            let ids = "";
+            for (let i = 0; i < data.length; i++) {
+                ids += data[i].id + ",";
+            }
+            ids = ids.substr(0, ids.length - 1);
+            layer.confirm('确定要删除这些复检单', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + ids,
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampRetest-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampRetest-table');
+        }
+    })
+</script>
+</html>
