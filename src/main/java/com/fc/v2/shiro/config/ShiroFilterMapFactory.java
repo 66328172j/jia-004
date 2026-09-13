@@ -59,6 +59,10 @@ public class ShiroFilterMapFactory {
 		// 开放APicontroller
 		filterChainDefinitionMap.put("/ApiController/**", "anon");
 
+		// 移动端扫码查询：客户无需登录即可打开查询页、按批号查询（接口仅返回脱敏字段）
+		filterChainDefinitionMap.put("/SampScanController/view", "anon");
+		filterChainDefinitionMap.put("/SampScanController/query", "anon");
+
 		filterChainDefinitionMap.put("/oss/**", "anon");
 		filterChainDefinitionMap.put("/druid/**", "anon");
 

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>产品检验信息查询</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f2f4f7; color: #303133; min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #2d8cf0, #1b6fd6);
+            color: #fff; padding: 20px 16px 28px; text-align: center;
+        }
+        .header h1 { font-size: 19px; font-weight: 600; }
+        .header p { font-size: 12px; opacity: .85; margin-top: 6px; }
+        .container { padding: 0 14px; margin-top: -16px; }
+        .search-card {
+            background: #fff; border-radius: 10px; padding: 16px 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+        }
+        .input-row { display: flex; gap: 8px; }
+        .input-row input {
+            flex: 1; height: 44px; border: 1px solid #dcdfe6; border-radius: 8px;
+            padding: 0 12px; font-size: 16px; outline: none; background: #fafafa;
+        }
+        .input-row input:focus { border-color: #2d8cf0; background: #fff; }
+        .btn-scan {
+            width: 46px; height: 44px; flex-shrink: 0; border: 1px solid #2d8cf0;
+            border-radius: 8px; background: #ecf5ff; color: #2d8cf0;
+            font-size: 20px; line-height: 1; cursor: pointer;
+        }
+        .btn-query {
+            width: 100%; height: 44px; margin-top: 10px; border: none; border-radius: 8px;
+            background: #2d8cf0; color: #fff; font-size: 16px; cursor: pointer;
+        }
+        .btn-query:active { background: #1b6fd6; }
+        .btn-query[disabled] { background: #a0cfff; }
+
+        .alert {
+            margin-top: 14px; border-radius: 8px; padding: 12px 14px; font-size: 14px;
+            line-height: 1.5; display: none;
+        }
+        .alert-warning { background: #fdf6ec; color: #e6a23c; border: 1px solid #faecd8; display: block; }
+        .alert-info { background: #f4f4f5; color: #909399; border: 1px solid #e9e9eb; display: block; }
+
+        .result-card {
+            display: none; margin-top: 14px; background: #fff; border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06); overflow: hidden;
+        }
+        .result-head { padding: 14px; border-bottom: 1px solid #f0f2f5; }
+        .result-head .lot-no { font-size: 17px; font-weight: 600; word-break: break-all; }
+        .result-body { padding: 4px 14px 10px; }
+        .result-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid #f5f7fa; font-size: 14px;
+        }
+        .result-row:last-child { border-bottom: none; }
+        .result-row .label { color: #909399; flex-shrink: 0; }
+        .result-row .value { color: #303133; text-align: right; word-break: break-all; margin-left: 12px; }
+
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 13px; color: #fff; }
+        .b-blue { background: #2d8cf0; }
+        .b-orange { background: #ff9900; }
+        .b-cyan { background: #13c2c2; }
+        .b-green { background: #19be6b; }
+        .b-gray { background: #909399; }
+        .b-red { background: #ed4014; }
+
+        .scan-mask {
+            display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, .85);
+            z-index: 99; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .scan-mask video { width: 86%; max-width: 360px; border-radius: 8px; background: #000; }
+        .scan-tip { color: #fff; font-size: 14px; margin-top: 14px; }
+        .scan-close {
+            margin-top: 18px; padding: 8px 26px; border-radius: 20px; border: 1px solid #fff;
+            background: transparent; color: #fff; font-size: 14px; cursor: pointer;
+        }
+        .footer-tip { text-align: center; color: #c0c4cc; font-size: 12px; margin: 22px 0 20px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>产品检验信息查询</h1>
+    <p>扫描或输入产品批号，查询检验状态与判定结论</p>
+</div>
+
+<div class="container">
+    <div class="search-card">
+        <div class="input-row">
+            <input type="text" id="lotNo" placeholder="请输入或扫描批号" autocomplete="off" maxlength="64">
+            <button type="button" class="btn-scan" id="scanBtn" title="扫码查询" aria-label="扫码查询">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-top:-2px">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8h10v8H7z"/>
+                </svg>
+            </button>
+        </div>
+        <button type="button" class="btn-query" id="queryBtn">查 询</button>
+    </div>
+
+    <div class="alert" id="alertBox"></div>
+
+    <div class="result-card" id="resultCard">
+        <div class="result-head">
+            <div class="lot-no" id="rLotNo"></div>
+        </div>
+        <div class="result-body">
+            <div class="result-row">
+                <span class="label">产品编号</span><span class="value" id="rProductCode"></span>
+            </div>
+            <div class="result-row">
+                <span class="label">产品名称</span><span class="value" id="rProductName"></span>
+            </div>
+            <div class="result-row">
+                <span class="label">检验状态</span><span class="value" id="rStatus"></span>
+            </div>
+            <div class="result-row">
+                <span class="label">判定结论</span><span class="value" id="rConclude"></span>
+            </div>
+            <div class="result-row">
+                <span class="label">质量等级</span><span class="value" id="rGrade"></span>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-tip">如查询结果与实际不符，请联系供方质量管理部门</p>
+</div>
+
+<div class="scan-mask" id="scanMask">
+    <video id="scanVideo" playsinline muted autoplay></video>
+    <div class="scan-tip" id="scanTip">将条码/二维码放入框内，识别后自动查询</div>
+    <button type="button" class="scan-close" id="scanClose">取 消</button>
+</div>
+
+<script th:inline="javascript">
+    let rootPath = /*[[${rootPath}]]*/ '';
+    // 查询来源：微信内访问记 WECHAT，其余浏览器记 H5
+    let querySource = /MicroMessenger/i.test(navigator.userAgent) ? 'WECHAT' : 'H5';
+
+    let lotInput = document.getElementById('lotNo');
+    let queryBtn = document.getElementById('queryBtn');
+    let alertBox = document.getElementById('alertBox');
+    let resultCard = document.getElementById('resultCard');
+
+    // 检验状态码 -> 文案与样式（0待抽样 1抽样中 2待判定 3已判定 4已关闭）
+    let STATUS_MAP = {
+        0: ['待抽样', 'b-blue'],
+        1: ['抽样中', 'b-orange'],
+        2: ['待判定', 'b-cyan'],
+        3: ['已判定', 'b-green'],
+        4: ['已关闭', 'b-gray']
+    };
+
+    function showAlert(message) {
+        alertBox.className = 'alert alert-warning';
+        alertBox.textContent = message;
+    }
+
+    function hideAlert() {
+        alertBox.className = 'alert';
+        alertBox.textContent = '';
+    }
+
+    function badge(text, cls) {
+        return '<span class="badge ' + cls + '">' + text + '</span>';
+    }
+
+    function escapeHtml(str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+
+    function renderResult(data) {
+        document.getElementById('rLotNo').textContent = data.lotNo || '';
+        document.getElementById('rProductCode').textContent = data.productCode || '-';
+        document.getElementById('rProductName').textContent = data.productName || '-';
+
+        let status = STATUS_MAP[data.status];
+        document.getElementById('rStatus').innerHTML = status
+            ? badge(status[0], status[1]) : escapeHtml('-');
+
+        if (data.conclude === '合格') {
+            document.getElementById('rConclude').innerHTML = badge('合格', 'b-green');
+        } else if (data.conclude === '不合格') {
+            document.getElementById('rConclude').innerHTML = badge('不合格', 'b-red');
+        } else {
+            document.getElementById('rConclude').innerHTML = '<span style="color:#909399">检验中，暂未判定</span>';
+        }
+
+        document.getElementById('rGrade').textContent = data.gradeName || '-';
+        resultCard.style.display = 'block';
+    }
+
+    function doQuery() {
+        let lotNo = lotInput.value.trim();
+        if (!lotNo) {
+            resultCard.style.display = 'none';
+            showAlert('请输入或扫描批号后再查询');
+            lotInput.focus();
+            return;
+        }
+        hideAlert();
+        resultCard.style.display = 'none';
+        queryBtn.disabled = true;
+        queryBtn.textContent = '查询中...';
+
+        let url = rootPath + '/SampScanController/query?lotNo=' + encodeURIComponent(lotNo)
+            + '&source=' + encodeURIComponent(querySource);
+        // 用 XHR 而不是 fetch，兼容老版本微信 X5 内核
+        let xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.timeout = 15000;
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) { return; }
+            if (xhr.status >= 200 && xhr.status < 300) {
+                let res;
+                try {
+                    res = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    showAlert('服务返回异常，请稍后重试');
+                    return;
+                }
+                // 未命中：后端返回 hit=0 + 明确提示语，页面按正常提示展示，不报错
+                if (res.hit === 1 && res.data) {
+                    renderResult(res.data);
+                } else {
+                    showAlert(res.msg || '未查询到该批号的检验信息，请核对批号后重试');
+                }
+            } else {
+                showAlert('网络异常，请检查网络后重试');
+            }
+        };
+        xhr.ontimeout = function () { showAlert('查询超时，请稍后重试'); };
+        xhr.onerror = function () { showAlert('网络异常，请检查网络后重试'); };
+        xhr.onloadend = function () {
+            queryBtn.disabled = false;
+            queryBtn.textContent = '查 询';
+        };
+        xhr.send(null);
+    }
+
+    queryBtn.addEventListener('click', doQuery);
+    lotInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { doQuery(); }
+    });
+
+    // ===== 扫码：优先用浏览器原生 BarcodeDetector（Chrome/Edge/安卓微信等支持），不支持则降级手输 =====
+    let scanMask = document.getElementById('scanMask');
+    let scanVideo = document.getElementById('scanVideo');
+    let scanTip = document.getElementById('scanTip');
+    let scanStream = null;
+    let scanTimer = null;
+    let scanning = false;
+
+    function stopScan() {
+        scanning = false;
+        if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+        if (scanStream) {
+            scanStream.getTracks().forEach(function (t) { t.stop(); });
+            scanStream = null;
+        }
+        scanMask.style.display = 'none';
+    }
+
+    async function startScan() {
+        if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showAlert('当前浏览器不支持扫码，请直接手动输入批号查询');
+            lotInput.focus();
+            return;
+        }
+        try {
+            scanStream = await navigator.mediaDevices.getUserMedia({
+                video: {facingMode: 'environment'}
+            });
+        } catch (e) {
+            showAlert('无法调用摄像头，请检查摄像头权限，或直接手动输入批号');
+            return;
+        }
+        scanVideo.srcObject = scanStream;
+        scanMask.style.display = 'flex';
+        scanTip.textContent = '将条码/二维码放入框内，识别后自动查询';
+        scanning = true;
+
+        let detector;
+        try {
+            detector = new BarcodeDetector({
+                formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'ean_8',
+                          'qr_code', 'data_matrix', 'itf', 'codabar']
+            });
+        } catch (e) {
+            detector = new BarcodeDetector();
+        }
+
+        async function tick() {
+            if (!scanning) { return; }
+            try {
+                let codes = await detector.detect(scanVideo);
+                if (codes && codes.length > 0 && codes[0].rawValue) {
+                    lotInput.value = codes[0].rawValue.trim();
+                    stopScan();
+                    doQuery();
+                    return;
+                }
+            } catch (e) {
+                // 单帧识别失败忽略，继续下一帧
+            }
+            scanTimer = setTimeout(tick, 300);
+        }
+        scanVideo.play().then(tick).catch(function () {
+            stopScan();
+            showAlert('摄像头启动失败，请直接手动输入批号查询');
+        });
+    }
+
+    document.getElementById('scanBtn').addEventListener('click', startScan);
+    document.getElementById('scanClose').addEventListener('click', stopScan);
+    scanMask.addEventListener('click', function (e) {
+        if (e.target === scanMask) { stopScan(); }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('扫码查询记录')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">批号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="lotNo" placeholder="查询的批号" class="layui-input">
+                </div>
+                <label class="layui-form-label">来源</label>
+                <div class="layui-input-inline" style="width: 120px;">
+                    <select name="querySource">
+                        <option value="">全部</option>
+                        <option value="H5">H5页面</option>
+                        <option value="WECHAT">微信</option>
+                        <option value="APP">APP</option>
+                    </select>
+                </div>
+                <label class="layui-form-label">结果</label>
+                <div class="layui-input-inline" style="width: 120px;">
+                    <select name="resultFlag">
+                        <option value="">全部</option>
+                        <option value="1">命中</option>
+                        <option value="0">未命中</option>
+                    </select>
+                </div>
+                <label class="layui-form-label">查询时间</label>
+                <div class="layui-input-inline">
+                    <input type="text" id="beginTime" name="beginTime" placeholder="开始日期" class="layui-input" style="width: 130px;" readonly>
+                </div>
+                <div class="layui-input-inline">
+                    <input type="text" id="endTime" name="endTime" placeholder="结束日期" class="layui-input" style="width: 130px;" readonly>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampQueryLog-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampQueryLog-table" lay-filter="sampQueryLog-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampQueryLog-toolbar">
+    <button shiro:hasPermission="system:sampQueryLog:remove" class="pear-btn pear-btn-danger pear-btn-md" lay-event="batchRemove">
+        <i class="layui-icon layui-icon-delete"></i>
+        删除
+    </button>
+</script>
+
+<script type="text/html" id="sampQueryLog-bar">
+    <button shiro:hasPermission="system:sampQueryLog:remove" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="remove" title="删除"><i class="layui-icon layui-icon-delete"></i>
+    </button>
+</script>
+
+<script type="text/html" id="sampQueryLog-resultFlag">
+    {{# if (d.resultFlag == 1) { }}
+    <span class="layui-badge layui-bg-green">命中</span>
+    {{# } else { }}
+    <span class="layui-badge">未命中</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="sampQueryLog-querySource">
+    {{# if (d.querySource == 'WECHAT') { }}
+    <span class="layui-badge layui-bg-green">微信</span>
+    {{# } else if (d.querySource == 'APP') { }}
+    <span class="layui-badge layui-bg-blue">APP</span>
+    {{# } else if (d.querySource == 'H5') { }}
+    <span class="layui-badge layui-bg-cyan">H5</span>
+    {{# } else { }}
+    {{d.querySource || '-'}}
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['table', 'form', 'laydate', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let laydate = layui.laydate;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath + "/SampScanController/";
+        let cols = [
+            [
+                {type: 'checkbox'},
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '查询批号', field: 'lotNo', align: 'left'},
+                {title: '查询来源', field: 'querySource', align: 'center', templet: '#sampQueryLog-querySource'},
+                {title: '查询结果', field: 'resultFlag', align: 'center', templet: '#sampQueryLog-resultFlag'},
+                {title: '查询时间', field: 'queryTime', align: 'center'},
+                {title: '操作', toolbar: '#sampQueryLog-bar', align: 'center', width: 80}
+            ]
+        ]
+
+        laydate.render({elem: '#beginTime', trigger: 'click', type: 'date'});
+        laydate.render({elem: '#endTime', trigger: 'click', type: 'date'});
+
+        //table表单列表
+        table.render({
+            elem: '#sampQueryLog-table',
+            url: MODULE_PATH + 'logList',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampQueryLog-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampQueryLog-table)', function (obj) {
+            if (obj.event === 'remove') {
+                window.remove(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampQueryLog-table)', function (obj) {
+            if (obj.event === 'refresh') {
+                window.refresh();
+            } else if (obj.event === 'batchRemove') {
+                window.batchRemove(obj);
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampQueryLog-query)', function (data) {
+            table.reload('sampQueryLog-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //删除
+        window.remove = function (obj) {
+            layer.confirm('确定要删除该条查询记录？', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "logRemove?ids=" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code == 200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                obj.del();
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                });
+            });
+        }
+
+        //批量删除
+        window.batchRemove = function (obj) {
+            let data = table.checkStatus(obj.config.id).data;
+            if (data.length === 0) {
+                layer.msg("未选中数据", {icon: 3, time: 1000});
+                return false;
+            }
+            let ids = "";
+            for (let i = 0; i < data.length; i++) {
+                ids += data[i].id + ",";
+            }
+            ids = ids.substr(0, ids.length - 1);
+            layer.confirm('确定要删除这些查询记录？', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "logRemove?ids=" + ids,
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code == 200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('sampQueryLog-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                });
+            });
+        }
+
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampQueryLog-table');
+        }
+    })
+</script>
+</html>
