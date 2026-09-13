@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('批量导入检验批')"/>
+</head>
+<body>
+<form class="layui-form">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">导入文件</label>
+                    <div class="layui-input-block">
+                        <button type="button" class="layui-btn layui-btn-sm" id="chooseFile">
+                            <i class="layui-icon layui-icon-upload"></i> 选择CSV文件
+                        </button>
+                        <span id="fileName" class="layui-word-aux"></span>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label"></label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid layui-word-aux">
+                            每行一个检验批，列依次为：检验批号、产品编码、批量、检验类型（出厂/到货）、报检单位、报检人，六列都不能为空
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">
+                            请在 Excel 中另存为 CSV（UTF-8）后上传；没有模板可<a id="downloadTemplate" href="javascript:;" style="color: #1E9FFF;">点击下载导入模板</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label"></label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid layui-word-aux">逐行校验，通过的入库，失败的记明细；导入批次号、导入人由系统自动记录</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="button" class="layui-btn layui-btn-normal layui-btn-sm" id="importBtn">
+                <i class="layui-icon layui-icon-ok"></i>
+                开始导入
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary layui-btn-sm" id="resetBtn">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重选
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['form', 'upload', 'jquery'], function () {
+        let form = layui.form;
+        let upload = layui.upload;
+        let $ = layui.jquery;
+        let MODULE_PATH = rootPath+"/SampImportController";
+
+        //下载导入模板
+        $('#downloadTemplate').on('click', function () {
+            window.location.href = MODULE_PATH + '/template';
+        });
+
+        let loader = null;
+        upload.render({
+            elem: '#chooseFile',
+            url: MODULE_PATH + '/import',
+            field: 'file',
+            auto: false,
+            accept: 'file',
+            exts: 'csv',
+            //点"开始导入"才上传
+            bindAction: '#importBtn',
+            choose: function (obj) {
+                obj.preview(function (index, file) {
+                    $('#fileName').text(file.name);
+                });
+            },
+            before: function () {
+                loader = layer.load();
+            },
+            done: function (result) {
+                layer.close(loader);
+                if (result.code == 200) {
+                    layer.msg(result.msg, {icon: 1, time: 2000}, function () {
+                        parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                        parent.layui.table.reload("sampImport-table");
+                    });
+                } else {
+                    layer.msg(result.msg, {icon: 2, time: 2000});
+                }
+            },
+            error: function () {
+                layer.close(loader);
+                layer.msg('导入请求失败，请重试', {icon: 2, time: 1500});
+            }
+        });
+
+        //重选：清空已选文件名
+        $('#resetBtn').on('click', function () {
+            $('#fileName').text('');
+        });
+    })
+</script>
+</body>
+</html>

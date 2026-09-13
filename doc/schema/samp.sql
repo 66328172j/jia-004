@@ -37,8 +37,11 @@ CREATE TABLE IF NOT EXISTS t_samp_lot (
   sample_size int DEFAULT NULL COMMENT '应抽样本量 n',
   accept_count int DEFAULT NULL COMMENT '接收数 Ac',
   reject_count int DEFAULT NULL COMMENT '拒收数 Re',
+  defect_count int DEFAULT '0' COMMENT '不合格样本数（样本检测汇总）',
+  pass_rate decimal(5,2) DEFAULT NULL COMMENT '合格率（百分比，样本检测汇总）',
   status int DEFAULT '0' COMMENT '状态 0待抽样 1抽样中 2待判定 3已判定 4已关闭',
   conclude varchar(32) DEFAULT NULL COMMENT '判定结论 合格/不合格',
+  require_days int DEFAULT '7' COMMENT '要求完成天数（报检日期+该天数内未判定即超期）',
   del_flag int DEFAULT '0' COMMENT '0正常 1删除',
   create_by varchar(64) DEFAULT NULL COMMENT '创建者',
   create_time datetime DEFAULT NULL COMMENT '创建时间',
@@ -50,6 +53,28 @@ CREATE TABLE IF NOT EXISTS t_samp_lot (
   KEY idx_sl_product (product_id),
   KEY idx_sl_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批';
+
+CREATE TABLE IF NOT EXISTS t_samp_sample (
+  id bigint NOT NULL COMMENT '主键',
+  lot_id bigint NOT NULL COMMENT '检验批ID',
+  sample_no varchar(16) NOT NULL COMMENT '样本编号（S01..Sn）',
+  item_code varchar(64) DEFAULT NULL COMMENT '检测项编码',
+  item_name varchar(128) DEFAULT NULL COMMENT '检测项名称',
+  std_value varchar(255) DEFAULT NULL COMMENT '标准值/判定依据',
+  measured_value varchar(255) DEFAULT NULL COMMENT '实测值',
+  item_result int DEFAULT '0' COMMENT '单项判定 0合格 1不合格',
+  check_by varchar(64) DEFAULT NULL COMMENT '检测人',
+  check_time datetime DEFAULT NULL COMMENT '检测时间',
+  del_flag int DEFAULT '0' COMMENT '0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_ss_lot_no (lot_id, sample_no),
+  KEY idx_ss_lot (lot_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验样本检测记录';
 
 CREATE TABLE IF NOT EXISTS t_samp_scheme (
   id bigint NOT NULL COMMENT '主键',
@@ -93,3 +118,137 @@ INSERT INTO t_samp_product (id, code, name, spec, unit, category, aql, status, d
  (2, 'SAMP-P002', '示例产品乙', 'B型', '箱', '结构件', 2.50, 0, 0, NOW()),
  (3, 'SAMP-P003', '停用产品丙', 'C型', '件', '结构件', 2.50, 1, 0, NOW())
 ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status);
+
+-- 已按早期版本建过 t_samp_lot 的库，补样本检测汇总两列（新库无需执行）：
+-- ALTER TABLE t_samp_lot ADD COLUMN defect_count int DEFAULT '0' COMMENT '不合格样本数（样本检测汇总）' AFTER reject_count;
+-- ALTER TABLE t_samp_lot ADD COLUMN pass_rate decimal(5,2) DEFAULT NULL COMMENT '合格率（百分比，样本检测汇总）' AFTER defect_count;
+-- 已按早期版本建过 t_samp_lot 的库，补要求完成天数列（新库无需执行）：
+-- ALTER TABLE t_samp_lot ADD COLUMN require_days int DEFAULT '7' COMMENT '要求完成天数（报检日期+该天数内未判定即超期）' AFTER conclude;
+
+CREATE TABLE IF NOT EXISTS t_samp_retest (
+  id bigint NOT NULL COMMENT '主键',
+  lot_id bigint NOT NULL COMMENT '检验批ID',
+  retest_no varchar(64) NOT NULL COMMENT '复检单号',
+  reason varchar(500) DEFAULT NULL COMMENT '复检原因',
+  sample_qty int DEFAULT NULL COMMENT '复检样本量（应抽样本量的两倍）',
+  origin_result int DEFAULT NULL COMMENT '原判定 0合格 1不合格',
+  retest_result int DEFAULT NULL COMMENT '复检判定 0合格 1不合格',
+  retest_by varchar(64) DEFAULT NULL COMMENT '复检人',
+  retest_time datetime DEFAULT NULL COMMENT '复检时间',
+  status int DEFAULT '0' COMMENT '状态 0待复检 1已完成 2已作废',
+  del_flag int DEFAULT '0' COMMENT '0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sr_no (retest_no),
+  KEY idx_sr_lot (lot_id),
+  KEY idx_sr_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批复检记录';
+
+CREATE TABLE IF NOT EXISTS t_samp_export (
+  id varchar(32) NOT NULL COMMENT '主键',
+  batch_no varchar(64) NOT NULL COMMENT '导出批次号',
+  begin_date datetime DEFAULT NULL COMMENT '导出开始日期',
+  end_date datetime DEFAULT NULL COMMENT '导出结束日期',
+  check_type varchar(32) DEFAULT NULL COMMENT '检验类型',
+  file_name varchar(255) DEFAULT NULL COMMENT '导出文件名',
+  export_count int DEFAULT '0' COMMENT '导出条数',
+  export_by varchar(64) DEFAULT NULL COMMENT '导出人',
+  export_time datetime DEFAULT NULL COMMENT '导出时间',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_se_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验台账导出记录';
+
+CREATE TABLE IF NOT EXISTS t_samp_urge (
+  id bigint NOT NULL COMMENT '主键',
+  lot_id bigint NOT NULL COMMENT '检验批ID',
+  urge_no varchar(64) NOT NULL COMMENT '催办单号',
+  urge_count int DEFAULT '1' COMMENT '催办次数（该批第几次催办）',
+  overdue_days int DEFAULT '0' COMMENT '超期天数（催办时）',
+  urge_by varchar(64) DEFAULT NULL COMMENT '催办人',
+  urge_time datetime DEFAULT NULL COMMENT '本次催办时间',
+  del_flag int DEFAULT '0' COMMENT '0正常 1删除',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_su_no (urge_no),
+  KEY idx_su_lot (lot_id),
+  KEY idx_su_by_time (urge_by, urge_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批超期催办记录';
+
+CREATE TABLE IF NOT EXISTS t_samp_job (
+  id varchar(64) NOT NULL COMMENT '主键',
+  job_name varchar(64) NOT NULL COMMENT '任务名',
+  job_code varchar(64) DEFAULT NULL COMMENT '任务编码',
+  cron varchar(64) NOT NULL COMMENT 'cron 表达式',
+  status int DEFAULT '0' COMMENT '状态 0启用 1停用',
+  remark varchar(500) DEFAULT NULL COMMENT '备注',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  del_flag int DEFAULT '0' COMMENT '删除标记 0正常 1删除',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sj_code (job_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='定时任务配置';
+
+CREATE TABLE IF NOT EXISTS t_samp_job_log (
+  id varchar(64) NOT NULL COMMENT '主键',
+  job_name varchar(64) DEFAULT NULL COMMENT '任务名',
+  start_time datetime DEFAULT NULL COMMENT '开始时间',
+  end_time datetime DEFAULT NULL COMMENT '结束时间',
+  scan_count int DEFAULT '0' COMMENT '扫描条数',
+  urge_count int DEFAULT '0' COMMENT '生成催办条数',
+  fail_count int DEFAULT '0' COMMENT '失败条数',
+  status int DEFAULT '0' COMMENT '执行结果 0成功 1失败',
+  error_msg varchar(2000) DEFAULT NULL COMMENT '错误信息',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (id),
+  KEY idx_sjl_name_time (job_name, start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='定时任务执行日志';
+
+CREATE TABLE IF NOT EXISTS t_samp_import_batch (
+  id varchar(32) NOT NULL COMMENT '主键',
+  batch_no varchar(64) NOT NULL COMMENT '导入批次号',
+  file_name varchar(255) DEFAULT NULL COMMENT '导入文件名',
+  total_count int DEFAULT '0' COMMENT '总条数',
+  success_count int DEFAULT '0' COMMENT '成功条数',
+  fail_count int DEFAULT '0' COMMENT '失败条数',
+  status int DEFAULT '0' COMMENT '状态 0进行中 1已完成 2已失败',
+  operator varchar(64) DEFAULT NULL COMMENT '导入人（实际操作的登录人）',
+  finish_time datetime DEFAULT NULL COMMENT '完成时间',
+  create_by varchar(64) DEFAULT NULL COMMENT '创建者',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  update_by varchar(64) DEFAULT NULL COMMENT '更新者',
+  update_time datetime DEFAULT NULL COMMENT '更新时间',
+  del_flag int DEFAULT '0' COMMENT '0正常 1删除',
+  PRIMARY KEY (id),
+  KEY idx_sib_batch_no (batch_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批导入批次';
+
+CREATE TABLE IF NOT EXISTS t_samp_import_error (
+  id varchar(32) NOT NULL COMMENT '主键',
+  batch_id varchar(32) NOT NULL COMMENT '导入批次ID',
+  row_no int DEFAULT NULL COMMENT 'Excel行号（表头为第1行，数据从第2行起）',
+  field_name varchar(64) DEFAULT NULL COMMENT '出错字段',
+  error_msg varchar(500) DEFAULT NULL COMMENT '失败原因',
+  create_time datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (id),
+  KEY idx_sie_batch (batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='检验批导入失败明细';
+
+-- 默认超期扫描任务：每天 08:00 扫描未判定且超期的检验批，自动生成催办记录
+INSERT INTO t_samp_job (id, job_name, job_code, cron, status, remark, create_by, create_time, del_flag)
+VALUES ('samp_job_overdue_scan', '检验批超期催办扫描', 'OVERDUE_URGE_SCAN', '0 0 8 * * ?', 0,
+        '每天08:00扫描未判定且超期的检验批，自动生成催办记录', 'admin', sysdate(), 0);
