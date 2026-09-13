@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('质量统计')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">开始月份</label>
+                <div class="layui-input-inline">
+                    <input type="text" id="beginMonth" name="beginMonth" placeholder="yyyy-MM"
+                           class="layui-input" readonly>
+                </div>
+                <label class="layui-form-label">结束月份</label>
+                <div class="layui-input-inline">
+                    <input type="text" id="endMonth" name="endMonth" placeholder="yyyy-MM"
+                           class="layui-input" readonly>
+                </div>
+                <label class="layui-form-label">产品</label>
+                <div class="layui-input-inline">
+                    <select name="productId">
+                        <option value="">全部产品</option>
+                        <option th:each="product : ${products}" th:value="${product.id}"
+                                th:text="${product.code + ' ' + product.name}"></option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampStatistics-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="layui-row layui-col-space10">
+    <div class="layui-col-xs6 layui-col-md3">
+        <div class="layui-card">
+            <div class="layui-card-header">检验批次数</div>
+            <div class="layui-card-body">
+                <div id="stat-lotCount" style="font-size: 28px; color: #28333E;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-xs6 layui-col-md3">
+        <div class="layui-card">
+            <div class="layui-card-header">合格批次数</div>
+            <div class="layui-card-body">
+                <div id="stat-passCount" style="font-size: 28px; color: #16b777;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-xs6 layui-col-md3">
+        <div class="layui-card">
+            <div class="layui-card-header">不合格批次数</div>
+            <div class="layui-card-body">
+                <div id="stat-failCount" style="font-size: 28px; color: #ff5722;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-xs6 layui-col-md3">
+        <div class="layui-card">
+            <div class="layui-card-header">合格率 / 一次通过率</div>
+            <div class="layui-card-body">
+                <div style="font-size: 22px; color: #1e9fff;">
+                    <span id="stat-passRate">-</span>
+                    <span style="font-size: 14px; color: #999;">/</span>
+                    <span id="stat-firstPassRate" style="color: #ffb800;">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">月度趋势</div>
+    <div class="layui-card-body">
+        <div id="sampStatistics-chart" style="background-color:#ffffff;min-height:400px;"></div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">按产品统计</div>
+    <div class="layui-card-body">
+        <table id="sampStatistics-table" lay-filter="sampStatistics-table"></table>
+    </div>
+</div>
+
+<th:block th:include="include :: footer"/>
+<script type="text/html" id="sampStatistics-rate">
+    {{# if (d.passRate === null || d.passRate === undefined) { }}
+    <span class="layui-word-aux">-</span>
+    {{# } else { }}
+    {{ d.passRate }}%
+    {{# } }}
+</script>
+<script type="text/html" id="sampStatistics-firstRate">
+    {{# if (d.firstPassRate === null || d.firstPassRate === undefined) { }}
+    <span class="layui-word-aux">-</span>
+    {{# } else { }}
+    {{ d.firstPassRate }}%
+    {{# } }}
+</script>
+<script>
+    layui.use(['table', 'form', 'laydate', 'jquery', 'echarts'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let laydate = layui.laydate;
+        let $ = layui.jquery;
+        let echarts = layui.echarts;
+
+        let MODULE_PATH = rootPath + "/SampStatisticsController/";
+
+        laydate.render({elem: '#beginMonth', trigger: 'click', type: 'month', format: 'yyyy-MM'});
+        laydate.render({elem: '#endMonth', trigger: 'click', type: 'month', format: 'yyyy-MM'});
+
+        let cols = [
+            [
+                {title: '产品编号', field: 'productCode', align: 'center'},
+                {title: '产品名称', field: 'productName', align: 'left'},
+                {title: '检验批次数', field: 'lotCount', align: 'center', sort: true},
+                {title: '合格批次数', field: 'passCount', align: 'center'},
+                {title: '不合格批次数', field: 'failCount', align: 'center'},
+                {title: '合格率(%)', field: 'passRate', align: 'center', sort: true, templet: '#sampStatistics-rate'},
+                {title: '一次检验通过率(%)', field: 'firstPassRate', align: 'center', sort: true, templet: '#sampStatistics-firstRate'}
+            ]
+        ];
+
+        table.render({
+            elem: '#sampStatistics-table',
+            data: [],
+            cols: cols,
+            skin: 'line',
+            page: false,
+            text: {none: '所选范围内暂无已判定的检验批'}
+        });
+
+        let chart = echarts.init(document.getElementById('sampStatistics-chart'), 'walden');
+        window.onresize = function () {
+            chart.resize();
+        };
+
+        // 趋势图：合格/不合格批数堆叠柱，合格率/一次通过率双折线（右轴百分比）
+        function renderChart(rows) {
+            chart.setOption({
+                tooltip: {trigger: 'axis'},
+                legend: {data: ['合格批次数', '不合格批次数', '合格率', '一次检验通过率']},
+                xAxis: [{
+                    type: 'category',
+                    data: rows.map(function (r) {
+                        return r.month;
+                    })
+                }],
+                yAxis: [
+                    {type: 'value', name: '批次数', minInterval: 1},
+                    {type: 'value', name: '比率(%)', min: 0, max: 100}
+                ],
+                series: [
+                    {
+                        name: '合格批次数',
+                        type: 'bar',
+                        stack: 'lot',
+                        data: rows.map(function (r) {
+                            return r.passCount;
+                        }),
+                        itemStyle: {color: '#16b777'}
+                    },
+                    {
+                        name: '不合格批次数',
+                        type: 'bar',
+                        stack: 'lot',
+                        data: rows.map(function (r) {
+                            return r.failCount;
+                        }),
+                        itemStyle: {color: '#ff5722'}
+                    },
+                    {
+                        name: '合格率',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        connectNulls: true,
+                        data: rows.map(function (r) {
+                            return r.passRate;
+                        })
+                    },
+                    {
+                        name: '一次检验通过率',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        connectNulls: true,
+                        data: rows.map(function (r) {
+                            return r.firstPassRate;
+                        })
+                    }
+                ]
+            }, true);
+        }
+        renderChart([]);
+
+        function rateText(value) {
+            return (value === null || value === undefined) ? '-' : value + '%';
+        }
+
+        // 查询：产品统计和月度趋势用同一套过滤条件，并行请求
+        function loadStatistics(field) {
+            let loading = layer.load();
+            $.when(
+                $.ajax({url: MODULE_PATH + 'byProduct', data: field, dataType: 'json', type: 'get'}),
+                $.ajax({url: MODULE_PATH + 'trendMonth', data: field, dataType: 'json', type: 'get'})
+            ).done(function (productRes, trendRes) {
+                layer.close(loading);
+                let productData = productRes[0];
+                let trendData = trendRes[0];
+                if (productData.code != 200 || trendData.code != 200) {
+                    layer.msg(productData.msg || trendData.msg || '查询失败', {icon: 2, time: 1500});
+                    return;
+                }
+                let summary = productData.data;
+                $('#stat-lotCount').text(summary.lotCount);
+                $('#stat-passCount').text(summary.passCount);
+                $('#stat-failCount').text(summary.failCount);
+                $('#stat-passRate').text(rateText(summary.passRate));
+                $('#stat-firstPassRate').text(rateText(summary.firstPassRate));
+                table.reload('sampStatistics-table', {data: summary.rows});
+                renderChart(trendData.data);
+            }).fail(function () {
+                layer.close(loading);
+                layer.msg('查询失败', {icon: 2, time: 1500});
+            });
+        }
+
+        form.on('submit(sampStatistics-query)', function (data) {
+            loadStatistics(data.field);
+            return false;
+        });
+
+        // 进页面先按全部时间范围加载一次
+        loadStatistics({});
+    });
+</script>
+</body>
+</html>
