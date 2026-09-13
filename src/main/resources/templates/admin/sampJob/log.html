@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('定时任务日志列表')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">任务名</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="jobName" placeholder="任务名" class="layui-input" th:value="${jobName}">
+                </div>
+                <label class="layui-form-label">执行结果</label>
+                <div class="layui-input-inline">
+                    <select name="status">
+                        <option value="">全部</option>
+                        <option value="0">成功</option>
+                        <option value="1">失败</option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampJobLog-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampJobLog-table" lay-filter="sampJobLog-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampJobLog-status">
+    {{# if (d.status == 0) { }}
+    <span class="layui-badge layui-bg-green">成功</span>
+    {{# } else { }}
+    <span class="layui-badge layui-bg-red">失败</span>
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampJobController/";
+        // 从任务列表带入时默认只查该任务的日志，未带参时查全部
+        let defaultJobName = /*[[${jobName}]]*/ '';
+        let cols = [
+            [
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '任务名', field: 'jobName', align: 'left'},
+                {title: '开始时间', field: 'startTime', align: 'center'},
+                {title: '结束时间', field: 'endTime', align: 'center'},
+                {title: '扫描批数', field: 'scanCount', align: 'center'},
+                {title: '生成催办', field: 'urgeCount', align: 'center'},
+                {title: '失败条数', field: 'failCount', align: 'center'},
+                {title: '执行结果', field: 'status', align: 'center', templet: '#sampJobLog-status'},
+                {title: '错误信息', field: 'errorMsg', align: 'left'},
+                {title: '记录时间', field: 'createTime', align: 'center'}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampJobLog-table',
+            url: MODULE_PATH + 'logList',
+            where: {jobName: defaultJobName ? defaultJobName : ''},
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: true,
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampJobLog-table)', function (obj) {
+            if (obj.event === 'refresh') {
+                window.refresh();
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampJobLog-query)', function (data) {
+            table.reload('sampJobLog-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampJobLog-table');
+        }
+    })
+</script>
+</html>
