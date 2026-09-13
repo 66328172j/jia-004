@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('定时任务列表')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">任务名</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="jobName" placeholder="任务名" class="layui-input">
+                </div>
+                <label class="layui-form-label">状态</label>
+                <div class="layui-input-inline">
+                    <select name="status">
+                        <option value="">全部</option>
+                        <option value="0">启用</option>
+                        <option value="1">停用</option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampJob-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampJob-table" lay-filter="sampJob-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampJob-toolbar">
+    <button shiro:hasPermission="system:sampJob:logView" class="pear-btn pear-btn-primary pear-btn-md" lay-event="logView">
+        <i class="layui-icon layui-icon-log"></i>
+        任务日志
+    </button>
+</script>
+
+<script type="text/html" id="sampJob-bar">
+    <button shiro:hasPermission="system:sampJob:run" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="run" title="执行一次"><i class="layui-icon layui-icon-triangle-r"></i>
+    </button>
+    <button shiro:hasPermission="system:sampJob:logView" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="log" title="任务日志"><i class="layui-icon layui-icon-log"></i>
+    </button>
+</script>
+
+<script type="text/html" id="sampJob-enable">
+    <input type="checkbox" name="enable" value="{{d.id}}" lay-skin="switch" lay-text="启用|停用" lay-filter="sampJob-enable" {{ d.status== 0 ? 'checked' : '' }}>
+</script>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampJobController/";
+        let cols = [
+            [
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '任务名', field: 'jobName', align: 'left'},
+                {title: '任务编码', field: 'jobCode', align: 'left'},
+                {title: 'cron执行表达式', field: 'cron', align: 'center'},
+                {title: '状态', field: 'status', align: 'center', templet: '#sampJob-enable'},
+                {title: '备注', field: 'remark', align: 'left'},
+                {title: '创建时间', field: 'createTime', align: 'center'},
+                {title: '操作', toolbar: '#sampJob-bar', align: 'center', width: 120}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampJob-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampJob-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampJob-table)', function (obj) {
+            if (obj.event === 'run') {
+                window.run(obj);
+            } else if (obj.event === 'log') {
+                window.logView(obj.data['jobName']);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampJob-table)', function (obj) {
+            if (obj.event === 'refresh') {
+                window.refresh();
+            } else if (obj.event === 'logView') {
+                window.logView('');
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampJob-query)', function (data) {
+            table.reload('sampJob-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //状态切换绑定：停用后任务不再自动跑
+        form.on('switch(sampJob-enable)', function (obj) {
+            let operate;
+            if (obj.elem.checked) {
+                operate = 0;
+            } else {
+                operate = 1;
+            }
+            let loading = layer.load()
+            $.ajax({
+                url: MODULE_PATH + 'changeStatus',
+                data: JSON.stringify({id: this.value, status: operate}),
+                dataType: 'json',
+                contentType: 'application/json',
+                type: 'put',
+                success: function (result) {
+                    layer.close(loading);
+                    if (result.code==200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                    }
+                }
+            })
+        });
+
+        //执行一次
+        window.run = function (obj) {
+            layer.confirm('确定要立即执行一次吗', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "run/" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'get',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 3000}, function () {
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 3000});
+                        }
+                    }
+                })
+            });
+        }
+
+        //任务日志
+        window.logView = function (jobName) {
+            layer.open({
+                type: 2,
+                title: '任务日志',
+                shade: 0.1,
+                area: ['90%', '90%'],
+                content: MODULE_PATH + 'logView' + (jobName ? '?jobName=' + encodeURIComponent(jobName) : '')
+            });
+        }
+
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampJob-table');
+        }
+    })
+</script>
+</html>
