@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('检验批批量导入')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">导入批次号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="batchNo" placeholder="导入批次号" class="layui-input">
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampImport-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampImport-table" lay-filter="sampImport-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampImport-toolbar">
+    <button shiro:hasPermission="system:sampImport:import" class="pear-btn pear-btn-primary pear-btn-md" lay-event="add">
+        <i class="layui-icon layui-icon-upload"></i>
+        批量导入
+    </button>
+</script>
+
+<script type="text/html" id="sampImport-bar">
+    <button shiro:hasPermission="system:sampImport:downloadError" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="downloadError" title="下载失败明细"><i class="layui-icon layui-icon-download-circle"></i>
+    </button>
+</script>
+
+<script type="text/html" id="sampImport-status">
+    {{# if (d.status == 1) { }}
+    <span class="layui-badge layui-bg-green">已完成</span>
+    {{# } else if (d.status == 2) { }}
+    <span class="layui-badge">已失败</span>
+    {{# } else { }}
+    <span class="layui-badge layui-bg-blue">进行中</span>
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampImportController/";
+        let cols = [
+            [
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '导入批次号', field: 'batchNo', align: 'left'},
+                {title: '文件名', field: 'fileName', align: 'left'},
+                {title: '总条数', field: 'totalCount', align: 'center'},
+                {title: '成功条数', field: 'successCount', align: 'center'},
+                {title: '失败条数', field: 'failCount', align: 'center'},
+                {title: '状态', field: 'status', align: 'center', templet: '#sampImport-status'},
+                {title: '导入人', field: 'operator', align: 'center'},
+                {title: '完成时间', field: 'finishTime', align: 'center'},
+                {title: '操作', toolbar: '#sampImport-bar', align: 'center', width: 80}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampImport-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampImport-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampImport-table)', function (obj) {
+            if (obj.event === 'downloadError') {
+                window.downloadError(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampImport-table)', function (obj) {
+            if (obj.event === 'add') {
+                window.add();
+            } else if (obj.event === 'refresh') {
+                window.refresh();
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampImport-query)', function (data) {
+            table.reload('sampImport-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //批量导入：弹层选择CSV文件上传
+        window.add = function () {
+            layer.open({
+                type: 2,
+                title: '批量导入检验批',
+                shade: 0.1,
+                area: ['520px', '420px'],
+                content: MODULE_PATH + 'add'
+            });
+        }
+        //下载失败明细：没有失败行的批次不下载
+        window.downloadError = function (obj) {
+            if (obj.data['failCount'] > 0) {
+                window.location.href = MODULE_PATH + 'downloadError?id=' + obj.data['id'];
+            } else {
+                layer.msg('该批次没有失败明细', {icon: 3, time: 1000});
+            }
+        }
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampImport-table');
+        }
+    })
+</script>
+</html>
