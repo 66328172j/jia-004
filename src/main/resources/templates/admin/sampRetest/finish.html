@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('录入复检结果')"/>
+</head>
+<body>
+<form class="layui-form" th:if="${TSampRetest != null}">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <input type="hidden" name="id" th:value="${TSampRetest.id}">
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检验批号</label>
+                    <div class="layui-input-block">
+                        <input type="text" readonly class="layui-input" th:value="${TSampRetest.lotNo}">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">复检单号</label>
+                    <div class="layui-input-block">
+                        <input type="text" readonly class="layui-input" th:value="${TSampRetest.retestNo}">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">复检原因</label>
+                    <div class="layui-input-block">
+                        <textarea readonly class="layui-textarea" th:text="${TSampRetest.reason}"></textarea>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">复检样本量</label>
+                    <div class="layui-input-block">
+                        <input type="text" readonly class="layui-input" th:value="${TSampRetest.sampleQty}">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">原判定</label>
+                    <div class="layui-input-block">
+                        <span class="layui-badge"
+                              th:text="${TSampRetest.originResult == 1 ? '不合格' : '合格'}">不合格</span>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">复检结果</label>
+                    <div class="layui-input-block">
+                        <input type="radio" name="retestResult" value="0" title="合格" lay-verify="required">
+                        <input type="radio" name="retestResult" value="1" title="不合格">
+                        <div class="layui-form-mid layui-word-aux">复检合格检验批将改判合格，复检不合格维持不合格</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="submit" class="layui-btn layui-btn-normal layui-btn-sm" lay-submit="" lay-filter="sampRetest-finish">
+                <i class="layui-icon layui-icon-ok"></i>
+                提交
+            </button>
+            <button type="reset" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重置
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['form', 'jquery'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let MODULE_PATH = rootPath+"/SampRetestController";
+
+        //保存：复检人/复检时间由后端按当前登录人与当前时间记录
+        form.on('submit(sampRetest-finish)', function (data) {
+            let loader = layer.load();
+            $.ajax({
+                url: MODULE_PATH+'/finish',
+                data: data.field,
+                dataType: 'json',
+                contentType: 'application/x-www-form-urlencoded',
+                type: 'post',
+                success: function (result) {
+                    if (result.code==200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                            parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                            parent.layui.table.reload("sampRetest-table");
+                            layer.close(loader);
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                        layer.close(loader);
+                    }
+                }
+            })
+            return false;
+        });
+    })
+</script>
+</body>
+</html>
