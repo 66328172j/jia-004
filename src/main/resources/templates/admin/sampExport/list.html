@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('检验台账导出记录')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">导出批次号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="batchNo" placeholder="导出批次号" class="layui-input">
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="sampExport-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="sampExport-table" lay-filter="sampExport-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="sampExport-toolbar">
+    <button shiro:hasPermission="system:sampExport:export" class="pear-btn pear-btn-primary pear-btn-md" lay-event="add">
+        <i class="layui-icon layui-icon-export"></i>
+        导出台账
+    </button>
+</script>
+
+<script type="text/html" id="sampExport-bar">
+    <button shiro:hasPermission="system:sampExport:download" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="download" title="下载"><i class="layui-icon layui-icon-download-circle"></i>
+    </button>
+</script>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/SampExportController/";
+        let cols = [
+            [
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '导出批次号', field: 'batchNo', align: 'left'},
+                {title: '开始日期', field: 'beginDate', align: 'center'},
+                {title: '结束日期', field: 'endDate', align: 'center'},
+                {title: '检验类型', field: 'checkType', align: 'center', templet: function (d) { return d.checkType ? d.checkType : '全部'; }},
+                {title: '导出条数', field: 'exportCount', align: 'center'},
+                {title: '导出人', field: 'exportBy', align: 'center'},
+                {title: '导出时间', field: 'exportTime', align: 'center'},
+                {title: '文件名', field: 'fileName', align: 'left'},
+                {title: '操作', toolbar: '#sampExport-bar', align: 'center', width: 80}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#sampExport-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#sampExport-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports']
+        });
+
+        //table图标事件绑定
+        table.on('tool(sampExport-table)', function (obj) {
+            if (obj.event === 'download') {
+                window.download(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(sampExport-table)', function (obj) {
+            if (obj.event === 'add') {
+                window.add();
+            } else if (obj.event === 'refresh') {
+                window.refresh();
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(sampExport-query)', function (data) {
+            table.reload('sampExport-table', {page: {curr: 1}, where: data.field})
+            return false;
+        });
+
+        //导出台账：弹层选择时间范围与检验类型
+        window.add = function () {
+            layer.open({
+                type: 2,
+                title: '导出检验台账',
+                shade: 0.1,
+                area: ['500px', '420px'],
+                content: MODULE_PATH + 'add'
+            });
+        }
+        //下载台账文件
+        window.download = function (obj) {
+            window.location.href = MODULE_PATH + 'download?id=' + obj.data['id'];
+        }
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('sampExport-table');
+        }
+    })
+</script>
+</html>
