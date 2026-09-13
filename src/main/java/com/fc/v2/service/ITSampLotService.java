@@ -49,6 +49,22 @@ public interface ITSampLotService extends IService<TSampLot> {
     public int updateTSampLot(TSampLot tSampLot);
 
     /**
+     * 判定完成（已判定/已关闭）后批量是否锁定
+     *
+     * @param dbLot 库中检验批
+     * @return true=批量不可再改
+     */
+    public boolean isBatchQtyLocked(TSampLot dbLot);
+
+    /**
+     * 关闭检验批：仅已判定的检验批可关闭，关闭后状态流转为已关闭
+     *
+     * @param id 检验批ID
+     * @return 结果
+     */
+    public int closeTSampLot(Long id);
+
+    /**
      * 批量删除检验批
      *
      * @param ids 需要删除的数据ID
@@ -71,4 +87,20 @@ public interface ITSampLotService extends IService<TSampLot> {
      * @return 抽样方案
      */
     public TSampScheme matchScheme(Integer batchQty);
+
+    /**
+     * 计算检验批当前超期天数：报检日期（未填取创建时间）+ 要求完成天数为要求完成期限，
+     * 超过期限且尚未判定（状态小于已判定）算超期，刚好到期当天不算超期
+     *
+     * @param lot 检验批
+     * @return 超期天数，未超期返回 0
+     */
+    public int calcOverdueDays(TSampLot lot);
+
+    /**
+     * 查询当前仍在超期的检验批（未判定且已超过要求完成天数）
+     *
+     * @return 超期检验批集合
+     */
+    public List<TSampLot> selectOverdueLotList();
 }
