@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('发起催办')"/>
+</head>
+<body>
+<form class="layui-form">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">检验批</label>
+                    <div class="layui-input-block">
+                        <select name="lotId" lay-verify="required" lay-filter="lotId">
+                            <option value="">请选择超期未判定的检验批</option>
+                            <option th:each="l : ${lots}" th:value="${l.id}"
+                                    th:selected="${lotId != null && lotId == l.id}"
+                                    th:text="${l.lotNo + '（' + (l.productName == null ? '' : l.productName) + '）'}"></option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="layui-form-item" th:if="${lot != null}">
+                    <label class="layui-form-label">要求完成天数</label>
+                    <div class="layui-input-block">
+                        <input type="text" readonly class="layui-input layui-input-inline" style="width: 80px;"
+                               th:value="${lot.requireDays == null ? 7 : lot.requireDays}">
+                        <div class="layui-form-mid layui-word-aux">报检日期
+                            <b th:text="${lot.applyDate == null ? '-' : #dates.format(lot.applyDate, 'yyyy-MM-dd')}"></b>，超过要求完成天数未判定即超期</div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item" th:if="${lot != null}">
+                    <label class="layui-form-label">当前超期</label>
+                    <div class="layui-input-block">
+                        <span class="layui-badge layui-bg-red" th:text="|超期 ${overdueDays} 天|">超期 1 天</span>
+                        <div class="layui-form-mid layui-word-aux">催办单号、催办次数、催办人、催办时间由系统自动记录</div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">备注</label>
+                    <div class="layui-input-block">
+                        <textarea placeholder="请输入备注" name="remark" class="layui-textarea"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="submit" class="layui-btn layui-btn-normal layui-btn-sm" lay-submit="" lay-filter="sampUrge-save">
+                <i class="layui-icon layui-icon-ok"></i>
+                提交
+            </button>
+            <button type="reset" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重置
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    layui.use(['form', 'jquery'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let MODULE_PATH = rootPath+"/SampUrgeController";
+
+        //换检验批时重新打开页面，带出该批的要求完成天数与当前超期天数
+        form.on('select(lotId)', function (data) {
+            if (data.value) {
+                window.location.href = MODULE_PATH + '/add?lotId=' + data.value;
+            }
+        });
+
+        //保存
+        form.on('submit(sampUrge-save)', function (data) {
+            let loader = layer.load();
+            $.ajax({
+                url: MODULE_PATH+'/add',
+                data: data.field,
+                dataType: 'json',
+                contentType: 'application/x-www-form-urlencoded',
+                type: 'post',
+                success: function (result) {
+                    if (result.code==200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                            parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                            parent.layui.table.reload("sampUrge-table");
+                            layer.close(loader);
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                        layer.close(loader);
+                    }
+                }
+            })
+            return false;
+        });
+    })
+</script>
+</body>
+</html>

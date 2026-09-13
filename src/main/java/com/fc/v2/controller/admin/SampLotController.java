@@ -6,7 +6,10 @@ import com.fc.v2.common.domain.AjaxResult;
 import com.fc.v2.common.domain.ResultTable;
 import com.fc.v2.common.log.Log;
 import com.fc.v2.model.auto.TSampLot;
+import com.fc.v2.model.auto.TSampProduct;
+import com.fc.v2.model.auto.TSampScheme;
 import com.fc.v2.service.ITSampLotService;
+import com.fc.v2.service.ITSampProductService;
 import com.fc.v2.util.StringUtils;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
@@ -15,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 /**
  * 检验批 controller
@@ -32,6 +37,9 @@ public class SampLotController extends BaseController {
     @Autowired
     private ITSampLotService tSampLotService;
 
+    @Autowired
+    private ITSampProductService tSampProductService;
+
     @ApiOperation(value = "分页跳转", notes = "分页跳转")
     @GetMapping("/view")
     public String view() {
@@ -40,7 +48,7 @@ public class SampLotController extends BaseController {
 
     @Log(title = "检验批集合查询", action = "list")
     @ApiOperation(value = "分页查询", notes = "分页查询")
-    @PostMapping("/list")
+    @GetMapping("/list")
     @ResponseBody
     public ResultTable list(TSampLot tSampLot) {
         QueryWrapper<TSampLot> queryWrapper = new QueryWrapper<TSampLot>();
@@ -52,7 +60,9 @@ public class SampLotController extends BaseController {
 
     @ApiOperation(value = "新增跳转", notes = "新增跳转")
     @GetMapping("/add")
-    public String add() {
+    public String add(ModelMap mmap) {
+        mmap.put("products", tSampProductService.selectTSampProductList(
+                new QueryWrapper<TSampProduct>().eq("status", 0)));
         return prefix + "/add";
     }
 
@@ -61,13 +71,19 @@ public class SampLotController extends BaseController {
     @PostMapping("/add")
     @ResponseBody
     public AjaxResult add(TSampLot tSampLot) {
-        return toAjax(tSampLotService.insertTSampLot(tSampLot));
+        try {
+            return toAjax(tSampLotService.insertTSampLot(tSampLot));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 
     @ApiOperation(value = "修改跳转", notes = "修改跳转")
     @GetMapping("/edit/{id}")
     public String edit(@PathVariable("id") Long id, ModelMap mmap) {
         mmap.put("TSampLot", tSampLotService.selectTSampLotById(id));
+        mmap.put("products", tSampProductService.selectTSampProductList(
+                new QueryWrapper<TSampProduct>().eq("status", 0)));
         return prefix + "/edit";
     }
 
@@ -76,7 +92,46 @@ public class SampLotController extends BaseController {
     @PostMapping("/edit")
     @ResponseBody
     public AjaxResult editSave(TSampLot tSampLot) {
-        return toAjax(tSampLotService.updateTSampLot(tSampLot));
+        TSampLot dbLot = tSampLotService.selectTSampLotById(tSampLot.getId());
+        if (dbLot == null) {
+            return error("检验批不存在或已删除");
+        }
+        try {
+            // 抽样开始（抽样中/待判定/已判定/已关闭）后批量锁定，防止批量与已确定的抽样方案不一致
+            if (tSampLotService.isBatchQtyLocked(dbLot)
+                    && !Objects.equals(dbLot.getBatchQty(), tSampLot.getBatchQty())) {
+                return error("该检验批抽样已开始，批量不允许修改");
+            }
+            return toAjax(tSampLotService.updateTSampLot(tSampLot));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "按批量匹配抽样方案", notes = "按批量匹配抽样方案")
+    @GetMapping("/matchScheme")
+    @ResponseBody
+    public AjaxResult matchScheme(Integer batchQty) {
+        if (batchQty == null || batchQty <= 0) {
+            return AjaxResult.error("批量必须为正整数");
+        }
+        TSampScheme scheme = tSampLotService.matchScheme(batchQty);
+        if (scheme == null) {
+            return AjaxResult.error("批量[" + batchQty + "]未匹配到抽样方案");
+        }
+        return AjaxResult.successData(200, scheme);
+    }
+
+    @Log(title = "检验批关闭", action = "close")
+    @ApiOperation(value = "关闭检验批", notes = "关闭检验批")
+    @PostMapping("/close")
+    @ResponseBody
+    public AjaxResult close(Long id) {
+        try {
+            return toAjax(tSampLotService.closeTSampLot(id));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 
     @Log(title = "检验批删除", action = "remove")
@@ -84,6 +139,10 @@ public class SampLotController extends BaseController {
     @DeleteMapping("/remove")
     @ResponseBody
     public AjaxResult remove(String ids) {
-        return toAjax(tSampLotService.deleteTSampLotByIds(ids));
+        try {
+            return toAjax(tSampLotService.deleteTSampLotByIds(ids));
+        } catch (IllegalArgumentException e) {
+            return error(e.getMessage());
+        }
     }
 }
